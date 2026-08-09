@@ -121,6 +121,26 @@ sb: ## 任意の supabase コマンドを実行する（例: make sb CMD="projec
 	@test -n "$(CMD)" || { echo 'CMD を指定してください。例: make sb CMD="projects list"'; exit 1; }
 	@$(ENV_SH) supabase $(CMD)
 
+# types/database.types.ts はリモートスキーマからの自動生成物。
+# マイグレーションを追加・変更したら必ず流し直す（手で書くとスキーマとズレる）。
+.PHONY: db-types
+db-types: ## リモートスキーマから types/database.types.ts を再生成する
+	@$(ENV_SH) supabase gen types typescript \
+		--project-id $(PROJECT_REF) --schema public > /tmp/pb-db-types.ts
+	@{ \
+		echo '// Supabase のリモートスキーマから自動生成した型定義。'; \
+		echo '//'; \
+		echo '// 生成コマンド:'; \
+		echo '//   make db-types'; \
+		echo '//'; \
+		echo '// ★ 手で編集しないこと。スキーマを変えたら再生成する。'; \
+		echo '//   マイグレーション（supabase/migrations/）が唯一の正であり、このファイルはその写像。'; \
+		echo ''; \
+		cat /tmp/pb-db-types.ts; \
+	} > types/database.types.ts
+	@rm -f /tmp/pb-db-types.ts
+	@echo 'types/database.types.ts を再生成しました。'
+
 .PHONY: db-check-rls
 db-check-rls: ## RLSが未認証を遮断していることを検証する（全テーブルが [] なら正常）
 	@$(ENV_SH) \

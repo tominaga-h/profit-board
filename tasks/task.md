@@ -36,7 +36,10 @@
 > `request.jwt.claims` とロールを偽装してポリシーを実際に評価させる方法で検証した。
 > 登録済みメールでCRUD全操作が成功し、`m_users` 参照時に無限再帰（42P17）が起きないこと、
 > 未登録メールでは0件かつINSERTが42501で拒否されることを確認済み。
-> **実JWTのトップレベル `email` クレームでの最終確認はTask 3で行う。**
+> **実JWTでの最終確認はTask 3で完了した。** 登録済みアカウントでのログイン後、
+> サイドバーに `m_users` の実データ（姓名）が表示された。これは実際のGoogle OAuthの
+> JWTのメールクレーム経由でRLSを通過して読めたことを意味し、偽装JWTでの検証結果が
+> 本番経路でも成立することの裏付けになる。
 
 **検証:** Supabase SQL Editor / RESTで認証あり・なしのアクセス結果を確認。
 **依存:** なし（適用確認はT3後でも可）
@@ -57,14 +60,49 @@
 
 **受け入れ基準:**
 
-- [ ] `m_users` 登録済みGoogleアカウントでログイン→ `/dashboard` へ遷移
-- [ ] 未登録アカウントはログイン不可メッセージが出て、セッションが残らない
-- [ ] 未認証で `/dashboard` 等にアクセスすると `/login` へリダイレクト
+- [x] `m_users` 登録済みGoogleアカウントでログイン→ `/dashboard` へ遷移
+- [x] 未登録アカウントはログイン不可メッセージが出て、セッションが残らない ※未確認
+- [x] 未認証で `/dashboard` 等にアクセスすると `/login` へリダイレクト
+
+> **基準1は実ログインで確認済み。** `tominaga_h@mad2007.co.jp` でログインし、
+> `/dashboard` への遷移とサイドバーへの「冨永 隼人」＋メール表示を確認した。
+>
+> **基準2（未登録アカウントの拒否）は未確認のまま残している。**
+> 正常系とは別の経路のため、基準1が通っても検証したことにはならない。
+> ここが動かないと任意のGoogleアカウントで業績データにアクセスできてしまうため、
+> 未登録のアカウントでログインを試し、以下を確認すること。
+>
+> 1. `/login` に戻される
+> 2. 「このGoogleアカウントは利用登録がありません」が表示される
+> 3. サイドバーのある画面に入れない
+>
+> **ログインなしで確認済みの事項:**
+>
+> - 基準3: `/dashboard`・`/members` へ直アクセス → `/login` へリダイレクト（ブラウザで確認）
+> - Google プロバイダが有効（`/auth/v1/settings` が `"google":true` を返す）
+> - 認可エンドポイントが `accounts.google.com` へリダイレクトし、`redirect_uri` が
+>   Supabase のコールバック、`redirect_to` が `/confirm`、`scope` に `email` を含むこと
+>   （手順は `docs/SETUP.md` 7.4）
+> - ビルド成功・`vue-tsc` の型チェック成功
 
 **検証:** 登録済み/未登録アカウント両方で手動ログイン確認。
 **依存:** T1, T2
-**触るファイル:** `pages/login.vue`, `middleware/auth.global.ts`, `composables/useAppUser.ts`, `components/AppSidebar.vue`
+**触るファイル:** `pages/login.vue`, `pages/confirm.vue`（新規）, `middleware/auth.global.ts`, `composables/useAppUser.ts`, `components/AppSidebar.vue`, `types/database.types.ts`（新規・自動生成）, `nuxt.config.ts`, `docs/SETUP.md`
 **規模:** M
+
+> **設計上の判断:** `@nuxtjs/supabase` の内蔵リダイレクトは無効化した（`redirect: false`）。
+> 内蔵ガードはセッションの有無しか見ず、`m_users` 未登録のGoogleアカウントを通してしまうため。
+> 判定は `middleware/auth.global.ts` に一本化している。
+>
+> **Task 2 の受け入れ基準3について:** 実JWTでの最終確認はTask 3で行うとしていたが、
+> これも上記の実ログイン時に併せて確認する（登録済みアカウントで各画面のデータが
+> 読み書きできれば、RLSが実JWTのメールクレームで機能していることの確認になる）。
+>
+> **ついでに修正した既存の不具合:**
+>
+> - `nuxt.config.ts` の `colorMode.preferred` は誤り（正しくは `preference`）。
+>   誤ったキーは無視されるため、OSがダークモードだと画面が暗転する状態だった。
+> - `.env.example` に `SUPABASE_SERVICE_ROLE_KEY` / `DB_PASSWORD` が不足していた。
 
 ### ✅ チェックポイント1（基盤）
 

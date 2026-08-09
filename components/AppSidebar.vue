@@ -29,12 +29,20 @@ const isActive = (to?: string) => {
   return route.path === to || route.path.startsWith(`${to}/`)
 }
 
-// Task 3 でログインユーザーの実データに差し替える（composables/useAppUser.ts）。
-// plan.md A1 により部門は表示しない。
-const currentUser = {
-  name: 'ゲスト',
-  caption: '未ログイン',
-  initial: 'G',
+// plan.md A1 により部門は表示しない。キャプションにはメールを出す。
+const { appUser, displayName, authEmail, signOut } = useAppUser()
+
+/** アバターの一文字。姓の先頭を使う（日本語想定なので大文字化はしない）。 */
+const initial = computed(() => appUser.value?.family_name.charAt(0) ?? '?')
+
+const isSigningOut = ref(false)
+
+const handleSignOut = async () => {
+  isSigningOut.value = true
+  await signOut()
+  // replace: true で履歴を残さない。戻るボタンで認証必須画面に戻ろうとしても
+  // ミドルウェアが再び /login へ送るが、履歴を汚さないほうが素直に動く。
+  await navigateTo('/login', { replace: true })
 }
 </script>
 
@@ -86,12 +94,29 @@ const currentUser = {
         <div
           class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700"
         >
-          {{ currentUser.initial }}
+          {{ initial }}
         </div>
-        <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-900">{{ currentUser.name }}</p>
-          <p class="truncate text-xs text-slate-500">{{ currentUser.caption }}</p>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-semibold text-slate-900">
+            {{ displayName ?? '読み込み中...' }}
+          </p>
+          <!-- title 属性で、切り詰められたメールもホバーで全文を読めるようにする -->
+          <p class="truncate text-xs text-slate-500" :title="authEmail ?? undefined">
+            {{ authEmail ?? '' }}
+          </p>
         </div>
+
+        <UButton
+          color="gray"
+          variant="ghost"
+          size="xs"
+          icon="i-lucide-log-out"
+          aria-label="サインアウト"
+          title="サインアウト"
+          :loading="isSigningOut"
+          :disabled="isSigningOut"
+          @click="handleSignOut"
+        />
       </div>
     </div>
   </aside>

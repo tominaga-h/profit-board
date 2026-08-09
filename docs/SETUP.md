@@ -2,7 +2,7 @@
 
 このドキュメントは、ProfitBoard の開発環境を新規に構築するための手順書である。
 
-> 補足: Google OAuth の設定（7章）は Task 3、Vercel へのデプロイ（8章）は Task 16 で追記する。
+> 補足: Vercel へのデプロイ（8章）は Task 16 で追記する。
 
 ---
 
@@ -99,6 +99,7 @@ make db-status      # ローカルとリモートの適用状況を比較
 | `make db-push-seed` | マイグレーションとシードを適用する |
 | `make db-status` | ローカルとリモートの適用状況を比較する |
 | `make db-new NAME=xxx` | マイグレーションファイルを新規作成する |
+| `make db-types` | `types/database.types.ts` を再生成する |
 | `make db-check-rls` | RLS が未認証を遮断していることを検証する |
 | `make sb CMD="..."` | 任意の supabase コマンドを実行する |
 
@@ -244,9 +245,99 @@ WITH CHECK を通らないため）。ここで成功が返るならポリシー
 
 ## 7. Google OAuth の設定
 
-> **TODO: Task 3 で記述する。**
-> Supabase Auth の Google プロバイダ設定、Google Cloud のクライアント ID / シークレット、
-> リダイレクト URL（localhost と本番の両方）の登録手順を書く。
+ダッシュボード上での作業のため CLI では自動化できない。**アプリを動かす前に一度だけ実施する。**
+
+### 7.1 Google Cloud で OAuth クライアントを作る
+
+コンソール → 「APIとサービス」→「認証情報」。
+
+先に **OAuth 同意画面** を設定する（未設定だとクライアントを作成できない）。
+
+- User Type: 社内利用のみなら **内部**（Google Workspace の場合。審査不要で、自社ドメインのアカウントに自動的に限定される）
+- 「外部」しか選べない場合は「テストユーザー」に利用者のメールを追加する
+
+次に **OAuth 2.0 クライアント ID** を作成する。
+
+- 種類: **ウェブアプリケーション**
+- 承認済みのリダイレクト URI に以下を登録する:
+
+```
+https://iskirxmxaveqszuedtrv.supabase.co/auth/v1/callback
+```
+
+> **ここが最大の注意点。** 登録するのは Supabase のコールバック URL であって、
+> アプリの URL（`http://localhost:3000/...`）ではない。Google から見たリダイレクト先は
+> Supabase であり、アプリへ戻る経路は 7.3 の Redirect URLs が制御する。
+> ここに `localhost` を書くと `redirect_uri_mismatch` で失敗する。
+
+作成後に表示される **クライアント ID** と **クライアントシークレット** を控える。
+
+### 7.2 Supabase で Google プロバイダを有効化する
+
+ダッシュボード → Authentication → Sign In / Providers → Google
+
+- Google を有効化する
+- 7.1 のクライアント ID / シークレットを貼り付けて保存する
+
+### 7.3 リダイレクト URL を設定する
+
+ダッシュボード → Authentication → URL Configuration
+
+| 項目 | 値 |
+| --- | --- |
+| Site URL | `http://localhost:3000`（本番デプロイ後は Vercel の URL に変更） |
+| Redirect URLs | `http://localhost:3000/**` を追加 |
+
+ここが未設定だと、Google 認証自体は通るのにアプリへ戻れず弾かれる。
+
+### 7.4 設定できたかを確認する
+
+ブラウザでログインしなくても、認可エンドポイントの応答で設定の正しさを確認できる。
+
+```bash
+set -a; . ./.env; set +a
+curl -s -o /dev/null -D - \
+  "$SUPABASE_URL/auth/v1/authorize?provider=google&redirect_to=http%3A%2F%2Flocalhost%3A3000%2Fconfirm" \
+  -H "apikey: $SUPABASE_KEY" | grep -i '^location:'
+```
+
+`https://accounts.google.com/...` へのリダイレクトが返り、その中に以下が含まれていれば正しい。
+
+- `redirect_uri=https%3A%2F%2Fiskirxmxaveqszuedtrv.supabase.co%2Fauth%2Fv1%2Fcallback`（7.1 の登録値）
+- `redirect_to=http%3A%2F%2Flocalhost%3A3000%2Fconfirm`（アプリの戻り先）
+- `scope=email+profile` — **`email` が含まれることが重要**。認可判定（7.5）がこのクレームを使う
+
+`{"error":"..."}` が返る場合はプロバイダが有効になっていない（7.2 を見直す）。
+
+### 7.5 認可の仕組み（SPEC 3.1）
+
+Google 認証を通っただけでは利用できない。**`m_users` に登録済みのメールであること**が条件。
+
+判定は2層で行う。
+
+| 層 | 実装 | 役割 |
+| --- | --- | --- |
+| アプリ | `middleware/auth.global.ts` + `composables/useAppUser.ts` | 未登録なら `/login` へ戻し、セッションを破棄する |
+| DB | RLS の `is_app_user()` | 未登録ユーザーには全テーブルを 0 件にする |
+
+アプリ側の実装にミスがあっても DB 側が守るため、データは漏れない。
+
+> **`@nuxtjs/supabase` の内蔵リダイレクトは使っていない（`redirect: false`）。**
+> 内蔵ガードはセッションの有無しか見ないため、これに任せると
+> **未登録の Google アカウントでも全画面に入れてしまう**。判定は
+> `middleware/auth.global.ts` に一本化している。ここを `true` に戻してはいけない。
+
+なお認可に使うメールは、アプリ・DB とも **JWT のトップレベル `email` クレーム**である。
+`user_metadata` のメールは利用者自身が書き換えられるため使わない（5.3 参照）。
+
+### 7.6 型定義の再生成
+
+`types/database.types.ts` はリモートスキーマからの自動生成物で、手で編集しない。
+マイグレーションを追加・変更したら必ず流し直す。
+
+```bash
+make db-types
+```
 
 ---
 
@@ -279,3 +370,8 @@ make up        # 開発サーバ起動 → http://localhost:3000
 | Anon Key で全データが読める | **重大**。RLS が無効になっている。`make db-check-rls` で再現し、`ALTER TABLE ... ENABLE ROW LEVEL SECURITY` を確認する |
 | シードが反映されない | `make db-push`（シードなし）を使っている。`make db-push-seed` を使う（3.2参照） |
 | `.env: No such file or directory` | `make db-*` は `.env` を読み込む。`cp .env.example .env` して値を埋める（2章参照） |
+| Google の画面で `redirect_uri_mismatch` | Google Cloud の承認済みリダイレクト URI が違う。アプリの URL ではなく `https://<ref>.supabase.co/auth/v1/callback` を登録する（7.1参照） |
+| 「このGoogleアカウントは利用登録がありません」 | 認証は通ったが `m_users` に未登録。想定どおりの動作。利用するには 4.2 の手順でメールを登録する |
+| ログイン後に `/login` へ戻される | 上と同じ原因。Google アカウントのメールと `m_users.email` が完全一致しているか確認する（別名・大文字小文字違いは不可） |
+| `/confirm` で「ログイン処理中」のまま止まる | Redirect URLs 未設定でセッションを確立できていない（7.3参照）。10秒で `/login` に戻る |
+| ログインできるのに一覧が全部空 | 認可は通っているがデータが無いだけの可能性が高い。`make db-check-rls` とは別に、シードが流れているか確認する（3.2参照） |
