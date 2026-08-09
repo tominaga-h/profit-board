@@ -3,3 +3,24 @@
 **/.DS_Store
 
 node_modules/
+
+# Nuxt
+.nuxt/
+.output/
+.data/
+# nuxt generate は dist をシンボリックリンクで作るため末尾スラッシュなしで指定する
+dist
+
+# 検証ツールの出力
+.playwright-mcp/
+
+# Env
+# ネゲートは .env.* より後ろに置くこと（gitignore は後勝ち）
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*

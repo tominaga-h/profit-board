@@ -1,0 +1,22 @@
+/*
+ * @nuxtjs/tailwindcss はこのファイルを検出すると CSS のエントリポイントとして扱い、
+ * ディレクティブを自動注入しない（ログ: "Using Tailwind CSS from ~/assets/css/tailwind.css"）。
+ * そのため @tailwind ディレクティブは自分で書く必要がある。
+ * Tailwind v3 系のため @import "tailwindcss"（v4 の記法）は使わない。
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      'Hiragino Sans',
+      'Hiragino Kaku Gothic ProN',
+      'Noto Sans JP',
+      Meiryo,
+      sans-serif;
+  }
+}

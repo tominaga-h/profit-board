@@ -13,9 +13,9 @@
 
 **受け入れ基準:**
 
-- [ ] `npm run dev` で `localhost:3000` が起動し、サイドバー付きレイアウトが表示される
-- [ ] `/dashboard` `/projects` `/projects/edit` `/performance/input` `/members` `/members/edit` `/login` の空ページが存在しナビから遷移できる
-- [ ] `.env.example` に `SUPABASE_URL` / `SUPABASE_KEY` を記載
+- [x] `npm run dev` で `localhost:3000` が起動し、サイドバー付きレイアウトが表示される
+- [x] `/dashboard` `/projects` `/projects/edit` `/performance/input` `/members` `/members/edit` `/login` の空ページが存在しナビから遷移できる
+- [x] `.env.example` に `SUPABASE_URL` / `SUPABASE_KEY` を記載
 
 **検証:** `npm run build` 成功。手動でナビ遷移確認。
 **依存:** なし
