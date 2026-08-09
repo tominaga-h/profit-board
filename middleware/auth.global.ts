@@ -13,6 +13,8 @@
  *   セッションあり・m_users なし → /login?error=unregistered へ（サインアウトは login 側で実施）
  */
 
+import { AppUserStatus } from "../composables/useAppUser"
+
 /** 認証なしで到達できるパス。 */
 const PUBLIC_PATHS = new Set(['/login', '/confirm'])
 
@@ -38,12 +40,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // --- セッションあり ---------------------------------------------------
   // m_users との照合結果が未取得なら解決する。
   // ページ遷移のたびに問い合わせると無駄なので、解決済みなら再利用する。
-  if (status.value === 'idle' || (status.value !== 'loading' && !appUser.value)) {
+  if (status.value === AppUserStatus.IDLE || (status.value !== AppUserStatus.LOADING && !appUser.value)) {
     await resolve()
   }
 
   // 未登録アカウント（SPEC 3.1: ログイン不可）
-  if (status.value !== 'authorized') {
+  if (status.value !== AppUserStatus.AUTHORIZED) {
     // 既に /login にいるなら遷移不要。ここで navigateTo するとループする。
     if (to.path === '/login') return
     return navigateTo('/login?error=unregistered')

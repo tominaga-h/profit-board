@@ -10,17 +10,20 @@ export type AppUser = Database['public']['Tables']['m_users']['Row']
  * これを boolean 2つで表すと「まだ読み込み中」と「拒否された」が混ざり、
  * ミドルウェアが解決前にリダイレクトを撃ってしまう。
  */
-export type AppUserStatus =
+export const AppUserStatus = {
   /** まだ照合していない（初期状態） */
-  | 'idle'
+  IDLE: 'idle',
   /** m_users へ問い合わせ中 */
-  | 'loading'
+  LOADING: 'loading',
   /** 認証済みかつ m_users に登録あり → アプリ利用可 */
-  | 'authorized'
+  AUTHORIZED: 'authorized',
   /** 未認証（セッションなし） */
-  | 'unauthenticated'
+  UNAUTHENTICATED: 'unauthenticated',
   /** 認証済みだが m_users に未登録 → SPEC 3.1 によりアクセス不可 */
-  | 'unregistered'
+  UNREGISTERED: 'unregistered'
+} as const
+export type AppUserStatus = (typeof AppUserStatus)[keyof typeof AppUserStatus]
+
 
 /**
  * ログイン中ユーザーが m_users に登録されているかを解決し、その結果を保持する。
@@ -35,7 +38,7 @@ export const useAppUser = () => {
   // useState でリクエスト/ページ遷移をまたいで共有する。
   // ページごとに問い合わせ直すとサイドバーがちらつくため。
   const appUser = useState<AppUser | null>('app-user', () => null)
-  const status = useState<AppUserStatus>('app-user-status', () => 'idle')
+  const status = useState<AppUserStatus>('app-user-status', () => AppUserStatus.IDLE)
 
   /**
    * JWT のトップレベル `email` クレームを取り出す。
@@ -65,7 +68,7 @@ export const useAppUser = () => {
       return status.value
     }
 
-    status.value = 'loading'
+    status.value = AppUserStatus.LOADING
 
     // RLS により、m_users に未登録のユーザーからは 0 件しか返らない。
     // つまりこの照合はアプリ側とDB側の両方で成立している。
@@ -79,12 +82,12 @@ export const useAppUser = () => {
       // 通信断・RLS拒否などは「登録済み」と見なさない。
       console.error('[useAppUser] m_users の照合に失敗しました', error)
       appUser.value = null
-      status.value = 'unregistered'
+      status.value = AppUserStatus.UNREGISTERED
       return status.value
     }
 
     appUser.value = data ?? null
-    status.value = data ? 'authorized' : 'unregistered'
+    status.value = data ? AppUserStatus.AUTHORIZED : AppUserStatus.UNREGISTERED
     return status.value
   }
 
