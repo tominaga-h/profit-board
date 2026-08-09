@@ -8,8 +8,9 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    // Task 1 の検証は build 成功。型チェックは Task 4 以降で有効化する。
-    typeCheck: false,
+    // Task 4 で有効化。build 時に vue-tsc が走り、型エラーがあればビルドが失敗する。
+    // tests/ も .nuxt/tsconfig.json の include（../**/*）に入るため対象になる。
+    typeCheck: true,
   },
 
   // @nuxtjs/tailwindcss・@nuxt/icon・@nuxtjs/color-mode は

@@ -75,6 +75,22 @@ generate: ## 静的サイトを生成する（.output/public へ出力）
 preview: ## ビルド結果をプレビューする
 	$(COMPOSE) run --rm --no-deps --service-ports $(SERVICE) npm run preview
 
+# ---------------------------------------------------------------------------
+# テスト
+# ---------------------------------------------------------------------------
+
+.PHONY: test
+test: ## 単体テストを実行する（Vitest）
+	$(RUN) npm test
+
+.PHONY: test-watch
+test-watch: ## 単体テストをウォッチ実行する（Ctrl-C で抜ける）
+	$(RUN) npm run test:watch
+
+.PHONY: test-cov
+test-cov: ## カバレッジ付きで単体テストを実行する
+	$(RUN) npm run test:coverage
+
 # 任意の npm コマンドを実行する: make npm CMD="run lint"
 .PHONY: npm
 npm: ## 任意の npm コマンドを実行する（例: make npm CMD="run lint"）

@@ -13,6 +13,7 @@ dist
 
 # 検証ツールの出力
 .playwright-mcp/
+coverage/
 
 # Env
 # ネゲートは .env.* より後ろに置くこと（gitignore は後勝ち）
