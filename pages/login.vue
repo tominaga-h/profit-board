@@ -50,36 +50,43 @@ const signInWithGoogle = async () => {
 </script>
 
 <template>
-  <UCard class="w-full max-w-sm">
-    <div class="flex items-center gap-2.5">
-      <div class="grid h-9 w-9 place-items-center rounded-lg bg-blue-600 text-white">
-        <UIcon name="i-lucide-chart-column" class="h-5 w-5" />
+  <!-- フッター（© 表記）はデザイン上カードの外に置くため、max-w-sm はこのラッパーが持つ。 -->
+  <div class="w-full max-w-md">
+    <UCard class="py-10 px-7 shadow-lg">
+      <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-600 text-white">
+        <UIcon name="i-lucide-chart-column" class="h-7 w-7" />
       </div>
-      <span class="text-lg font-bold text-slate-900">ProfitBoard</span>
-    </div>
 
-    <p class="mt-4 text-sm text-slate-500">ログインしてください</p>
+      <h1 class="mt-4 text-center text-2xl font-bold text-slate-900">ProfitBoard</h1>
+      <p class="mt-1 text-center text-sm text-slate-500">営業成績管理システム</p>
 
-    <UAlert
-      v-if="errorMessage"
-      class="mt-4"
-      color="red"
-      variant="subtle"
-      icon="i-lucide-circle-alert"
-      :description="errorMessage"
-    />
+      <UAlert
+        v-if="errorMessage"
+        class="mt-4"
+        color="red"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        :description="errorMessage"
+      />
 
-    <UButton
-      class="mt-6 py-4 w-full justify-center shadow-lg"
-      size="lg"
-      color="white"
-      variant="solid"
-      icon="i-logos-google-icon"
-      :loading="isSigningIn"
-      :disabled="isSigningIn"
-      @click="signInWithGoogle"
-    >
-      Googleでログイン
-    </UButton>
-  </UCard>
+      <UButton
+        class="mt-6 py-4 w-full justify-center shadow-lg"
+        size="lg"
+        color="white"
+        variant="solid"
+        icon="i-logos-google-icon"
+        :loading="isSigningIn"
+        :disabled="isSigningIn"
+        @click="signInWithGoogle"
+      >
+        Googleでログイン
+      </UButton>
+
+      <p class="mt-5 text-center text-xs text-slate-400">
+        社内アカウント（@mad2007.co.jp）のみログインできます
+      </p>
+    </UCard>
+
+    <p class="mt-6 text-center text-xs text-slate-400">© 2026 ProfitBoard</p>
+  </div>
 </template>
