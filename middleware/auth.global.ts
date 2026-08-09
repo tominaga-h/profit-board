@@ -13,7 +13,7 @@
  *   セッションあり・m_users なし → /login?error=unregistered へ（サインアウトは login 側で実施）
  */
 
-import { AppUserStatus } from "../composables/useAppUser"
+import { AppUserStatus } from "~/composables/useAppUser"
 
 /** 認証なしで到達できるパス。 */
 const PUBLIC_PATHS = new Set(['/login', '/confirm'])
