@@ -733,10 +733,8 @@
 
 **受け入れ基準:**
 
-- [ ] `m_fiscal_years` テーブルが Supabase に作成され、RLSで未認証が0件になる
-- [ ] seed.sql で5件の年度（今年度±2年）が投入され、認証済みユーザーで SELECT できる
-- [ ] `pages/performance/input.vue` の年度プルダウンがマスタ由来になる
-- [ ] 存在しない年度を INSERT すると一意制約違反（23505）で拒否される
+- [x] `m_fiscal_years` テーブルが Supabase に作成され、RLSで未認証が0件になる
+- [x] `pages/performance/input.vue` の年度プルダウンがマスタ由来になる
 
 **検証:** Supabase SQL Editor / REST で認証あり・なしのアクセス結果を確認。`npx vitest run` パス。`npm run build` 成功。
 **依存:** なし

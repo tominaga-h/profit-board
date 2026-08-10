@@ -22,22 +22,15 @@ const route = useRoute()
 
 const { members, fetchMembers } = useMembers()
 const { projects, fetchProjects } = useProjects()
+const { fiscalYears } = useFiscalYears()
 const { form, status, errorMessage, fetchPerformance, resetForm } = usePerformance()
 
-/**
- * 年度プルダウンの選択肢（plan.md の残論点への回答）。
- *
- * ★ 実績のある年度を DB から引く案は採らない。実績が0件のうちは
- *   プルダウンが空になり、入力画面として成立しないため。
- *   今年度を中心に固定範囲を出せば、新しい年度の入力も最初からできる。
- */
-const CURRENT_FISCAL_YEAR = getCurrentFiscalYear()
-const FISCAL_YEAR_RANGE = [-2, -1, 0, 1].map((offset) => CURRENT_FISCAL_YEAR + offset)
-
-const yearOptions = FISCAL_YEAR_RANGE.map((year) => ({
-  value: String(year),
-  label: `${year}年度`,
-}))
+const yearOptions = computed(() =>
+  fiscalYears.value.map(({ year }) => ({
+    value: String(year),
+    label: `${year}年度`,
+  })),
+)
 
 // 月は FISCAL_MONTHS の並び（7月始まり）を使う。数値昇順にすると
 // 1,2,3... となり年度の並びにならない。
@@ -71,7 +64,7 @@ const projectOptions = computed(() =>
  *   プロジェクトだけは未選択のまま——こちらは既定値を決めようがなく、
  *   先頭を勝手に選ぶと意図しないプロジェクトの入力画面を開いてしまう。
  */
-const selectedYear = ref<string>(String(CURRENT_FISCAL_YEAR))
+const selectedYear = ref<string>('')
 const selectedMonth = ref<string>(String(new Date().getMonth() + 1))
 const selectedProject = ref<string>('')
 
@@ -105,7 +98,7 @@ const managementError = ref<ManagementCostRowErrors>({})
  */
 const restoreFromQuery = () => {
   const year = route.query.year
-  if (typeof year === 'string' && FISCAL_YEAR_RANGE.includes(Number(year))) {
+  if (typeof year === 'string' && fiscalYears.value.some((fiscalYear) => fiscalYear.year === Number(year))) {
     selectedYear.value = year
   }
 
@@ -125,6 +118,24 @@ onMounted(async () => {
   await Promise.all([fetchMembers(), fetchProjects()])
   restoreFromQuery()
 })
+
+// 年度マスタの取得完了後、クエリ指定がなければ今年度を初期選択する。
+watch(
+  fiscalYears,
+  () => {
+    if (fiscalYears.value.length === 0) return
+    if (selectedYear.value !== '') return
+
+    const currentYear = getCurrentFiscalYear()
+    selectedYear.value = String(
+      fiscalYears.value.some((fiscalYear) => fiscalYear.year === currentYear)
+        ? currentYear
+        : fiscalYears.value[0].year,
+    )
+    restoreFromQuery()
+  },
+  { immediate: true },
+)
 
 /**
  * 条件が変わったら読み直す。
