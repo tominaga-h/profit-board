@@ -103,7 +103,7 @@ onMounted(async () => {
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <NuxtLink v-for="summary in summaries" :key="summary.year"
-        :to="`/projects/${projectId}/years/${summary.year}/months`"
+        :to="`/projects/${projectId}/${summary.year}/months`"
         class="rounded-xl border px-5 py-4 transition-colors" :class="isSameYear(summary)
           ? 'bg-blue-50  border-blue-500 ring-blue-100'
           : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50'

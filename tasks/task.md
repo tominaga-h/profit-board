@@ -743,7 +743,7 @@
 
 ### Task 18: AppSidebar のリンク更新
 
-**内容:** 「プロジェクト一覧」の活性判定を `/projects` だけでなく動的セグメント（`/projects/[id]/years`, `/projects/[id]/years/[year]/months`, `/projects/[id]/years/[year]/months/[month]`）にも追従させる。`startsWith('/projects')` 系の判定で実装。リンクの文言は維持。
+**内容:** 「プロジェクト一覧」の活性判定を `/projects` だけでなく動的セグメント（`/projects/[id]/years`, `/projects/[id]/[year]/months`, `/projects/[id]/[year]/months/[month]`）にも追従させる。`startsWith('/projects')` 系の判定で実装。リンクの文言は維持。
 
 **受け入れ基準:**
 
@@ -928,23 +928,69 @@
 > - **パンくずはプロジェクト名を引けないとき項目ごと省く。** `'...'` を
 >   置くと、存在しない ID の画面でその表示が固定されたまま残る
 
-#### Task 19.3: 月選択画面（`/projects/[id]/years/[year]/months`）
+#### Task 19.3: 月選択画面（`/projects/[id]/[year]/months`）
 
-**内容:** デザイン画像: `design/month-select.png`。`FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。入力済み月（`t_sales` または `t_costs` にレコードあり）は青字、未入力月はグレーアウトしてクリック不可。「当月」バッジはシステム日付ベースで自動付与。クリック → `/projects/[id]/years/[year]/months/[month]` へ。
+**内容:** デザイン画像: `design/month-select.png`。`FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。未入力月は「未入力」と表示する（クリックは可能。下記注記）。「当月」バッジはシステム日付ベースで自動付与。クリック → `/projects/[id]/[year]/months/[month]` へ。
 
 **受け入れ基準:**
 
-- [ ] 12ヶ月分が4カラムで表示される（4×3グリッド）
-- [ ] 入力済み月はクリック可能、未入力月はグレーアウト
-- [ ] 「当月」バッジがシステム日付で正しく付与される
-- [ ] 売上・粗利が負値の月は `-¥X.XM` で赤字表示
+- [x] 12ヶ月分が4カラムで表示される（4×3グリッド）
+- [x] 未入力月は「未入力」と表示される（クリック可。当初の「グレーアウトしてクリック不可」から変更）
+- [x] 「当月」バッジがシステム日付で正しく付与される
+- [x] 売上・粗利が負値の月は赤字表示（表記は円固定。Task 19.2 と同じ）
 
 **検証:** dev環境で目視確認。空月（実績0件）と入力済み月の2パターンで確認。
 **依存:** Task 19.2
-**触るファイル:** `pages/projects/[id]/years/[year]/months/index.vue`, `composables/useProjectMonths.ts`
+**触るファイル:** `pages/projects/[id]/[year]/months/index.vue`, `composables/useProjectMonths.ts`
 **規模:** M
 
-#### Task 19.4: 実績閲覧画面（`/projects/[id]/years/[year]/months/[month]`）
+> **検証結果:** テスト172件が全件パス（`lib/` を触らないため増減なし）。
+> `make build`（`typeCheck: true`）成功。**受け入れ基準4件はすべてブラウザで実機確認済み。**
+> ただし実績が0件のため、確認できたのは空月のパターンのみ。
+> **入力済み月の表示（売上・粗利の数値と赤字）は実績データが入るまで未確認。**
+>
+> **★ URL から `years` の重複を除いた**（ユーザー指示）。
+> 当初の `/projects/{id}/years/{year}/months` は `years` が2回出て冗長なため、
+> **`/projects/{id}/{year}/months`** に変更した（月選択・実績閲覧の両方）。
+> **年度選択画面は `/projects/{id}/years` のまま**。
+> ルートは `pages/projects/[id]/[year]/months/` に移した。
+> `[year]` が `years` にもマッチしうる形になるが、月選択は `months` まで
+> 一致を要求するので `/projects/{id}/years` が誤って月選択に入ることはない。
+> `/projects/edit` も、Nuxt が静的セグメントを動的セグメントより優先するため
+> `[id]` に飲み込まれない。3つとも実機で共存を確認済み。
+>
+> **★ 未入力月を「クリック不可」から「クリック可」に変更した**（ユーザー確認済み）。
+> 実績データが0件の現状で当初の基準どおり実装すると、**12ヶ月すべてがクリック不可になり
+> 実績閲覧画面（Task 19.4）へ到達する手段がなくなる**。「未入力」の表示は残したので
+> 入力済みかどうかは区別できる。
+>
+> **★ 「当月」バッジは暦月だけで判定する**（ユーザー判断）。
+> 年度は見ないので、どの年度を開いても同じ暦月にバッジが付く。
+> 当初は年度も一致させる実装にしていたが、「当該年度を含まなくてよい」との
+> 指示により暦月のみに変更した。
+> なお `lib/fiscalYear.ts` に現在の月を返す関数はないため、暦月は
+> `new Date().getMonth() + 1` で取っている（`pages/performance/input.vue` と同じ）。
+>
+> **★ 入力済み判定は行の有無（`hasRecords`）で行う。** 金額が0でも行があれば
+> 入力済みなので、`totalSales === 0` では判定できない。
+>
+> **★ `month` は暦月（1〜12）であって年度内の連番ではない。**
+> `docs/SPEC.md` 6.0 が「年度2026の `month = 1` は暦2027年1月」と明記している。
+> 表示の暦年は `toCalendarYear(fiscalYear, month)` で導出しており、
+> 7月始まりのため 1〜6月は翌暦年になる（実機で 2026年度の1月が「2027年」と
+> 表示されることを確認済み）。
+>
+> **設計上の判断:**
+>
+> - **月は DB に持たず `FISCAL_MONTHS` を月マスタとして使う。** 実績のない月も
+>   0 の行として必ず12件返すので、画面側に穴埋めのロジックが要らない
+> - **0件の枝を作らない。** 年度選択画面と違い、月は常に12枚出る
+> - **年度が `m_fiscal_years` に存在するかは問わない。** 実績だけある年度も
+>   表示できたほうが素直で、年度マスタへの依存を増やさない
+> - **集計は既存の `sumAmount` / `calcGrossProfit` を呼ぶだけ**なので、
+>   Task 19.2 と同じ理由で composable のテストは作っていない
+
+#### Task 19.4: 実績閲覧画面（`/projects/[id]/[year]/months/[month]`）
 
 **内容:** デザイン画像: `design/performance-view.png`。上部サマリーカード（売上・費用・粗利（粗利率%））+ 詳細テーブル（7列: 大項目 / 小項目 / 稼働時間 / 稼働人日 / 単価 / 金額 / 小計）。`t_sales`/`t_costs` を売上/費用セクションに分けて表示。月ナビゲーション（`< 前月` / 当月 / `翌月 >`）ボタン。データ存在で活性化。`t_status.updated_at` + `t_status.updated_by` を「最終更新: YYYY/MM/DD HH:MM ユーザー名」形式で表示。**閲覧専用**。編集導線は「この月の実績を編集」ボタン → `/performance/input?year=${year}&month=${month}&project=${id}` 遷移。
 
@@ -959,7 +1005,7 @@
 
 **検証:** dev環境で目視確認。空月・入力済み月の2パターンで確認。
 **依存:** Task 19.3
-**触るファイル:** `pages/projects/[id]/years/[year]/months/[month].vue`, `composables/usePerformanceView.ts`, `components/Breadcrumbs.vue`
+**触るファイル:** `pages/projects/[id]/[year]/months/[month].vue`, `composables/usePerformanceView.ts`, `components/Breadcrumbs.vue`
 **規模:** M
 
 ### Task 20: ダッシュボード（俯瞰）

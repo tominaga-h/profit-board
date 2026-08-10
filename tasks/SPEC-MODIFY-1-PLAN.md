@@ -13,7 +13,7 @@
 | # | 仕様変更 | 影響を受ける既存ファイル | 新規ファイル |
 |---|---|---|---|
 | 1 | 年度マスタ | `pages/performance/input.vue`（`FISCAL_YEAR_RANGE`）<br>`lib/fiscalYear.ts`（年度計算は維持・年度選択だけ置換） | `supabase/migrations/<ts>_add_m_fiscal_years.sql`<br>`composables/useFiscalYears.ts`<br>`lib/schemas/fiscalYear.ts`<br>`tests/unit/schemas/fiscalYear.spec.ts` |
-| 2 | 4階層ドリルダウン | `pages/dashboard.vue`（一部再設計）<br>`pages/projects/index.vue`（完全に置換）<br>`tasks/task.md`（Task 11-14 を破棄マーク） | `pages/projects/[id]/years/index.vue`<br>`pages/projects/[id]/years/[year]/months/index.vue`<br>`pages/projects/[id]/years/[year]/months/[month].vue`<br>`components/Breadcrumbs.vue`（共通部品）<br>`components/YearAddModal.vue`（年度追加モーダル） |
+| 2 | 4階層ドリルダウン | `pages/dashboard.vue`（一部再設計）<br>`pages/projects/index.vue`（完全に置換）<br>`tasks/task.md`（Task 11-14 を破棄マーク） | `pages/projects/[id]/years/index.vue`<br>`pages/projects/[id]/[year]/months/index.vue`<br>`pages/projects/[id]/[year]/months/[month].vue`<br>`components/Breadcrumbs.vue`（共通部品）<br>`components/YearAddModal.vue`（年度追加モーダル） |
 | 3 | work_hours NUMERIC(6,2) | `lib/schemas/performance.ts`<br>`tests/unit/schemas/performance.spec.ts`<br>`pages/performance/input.vue`（`step="0.1"`） | `supabase/migrations/<ts>_alter_t_costs_work_hours_scale.sql` |
 
 ## 2. 既存タスクとの関係
@@ -63,7 +63,7 @@ CREATE TABLE public.m_fiscal_years (
 ### Task 18: AppSidebar のリンク更新
 
 「プロジェクト一覧」の導線を「ドリルダウン入口」として明確化し、活性判定を動的セグメントに追従。  
-`/projects`, `/projects/[id]/years`, `/projects/[id]/years/[year]/months`, `/projects/[id]/years/[year]/months/[month]` のいずれかにいるとき「プロジェクト一覧」を活性。  
+`/projects`, `/projects/[id]/years`, `/projects/[id]/[year]/months`, `/projects/[id]/[year]/months/[month]` のいずれかにいるとき「プロジェクト一覧」を活性。  
 `startsWith('/projects')` の判定で吸収可能。
 
 **依存**: なし（Task 19.1 と並行可）。  
@@ -94,17 +94,17 @@ CREATE TABLE public.m_fiscal_years (
 **依存**: Task 17, 19.1。  
 **規模**: M。
 
-#### Task 19.3: 月選択画面（`/projects/[id]/years/[year]/months`）
+#### Task 19.3: 月選択画面（`/projects/[id]/[year]/months`）
 **デザイン画像**: `design/month-select.png`。  
 **データ**: `FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。  
 **表示**: 入力済み月（`t_sales` または `t_costs` にレコードあり）は青字、未入力月はグレーアウトしてクリック不可。  
 **「当月」バッジ**: システム日付を `getCurrentFiscalYear()` + `FISCAL_MONTHS` の序数で判定して自動付与。  
-**遷移**: クリック → `/projects/[id]/years/[year]/months/[month]` へ。
+**遷移**: クリック → `/projects/[id]/[year]/months/[month]` へ。
 
 **依存**: Task 19.2。  
 **規模**: M。
 
-#### Task 19.4: 実績閲覧画面（`/projects/[id]/years/[year]/months/[month]`）
+#### Task 19.4: 実績閲覧画面（`/projects/[id]/[year]/months/[month]`）
 **デザイン画像**: `design/performance-view.png`。  
 **上部サマリーカード**: 売上・費用・粗利（粗利率%）。`lib/calc.ts` の集計関数を使用。  
 **詳細テーブル**: 7列（大項目 / 小項目 / 稼働時間 / 稼働人日 / 単価 / 金額 / 小計）。`t_sales`/`t_costs` を売上/費用セクションに分けて表示。  
@@ -178,7 +178,7 @@ Task 18（Sidebar）         ─┘                       Task 20（ダッシュ
 ## 5. リスク・注意点
 
 1. **実績データ0件**: マイグレーションは安全だが、Task 19.3/19.4/20 は「空画面」での確認になる。空画面の UI が妥当か（0件表示の出し方、CTA表示）は Task 15 で最終調整。
-2. **動的ルートのパフォーマンス**: `[id]/years/[year]/months/[month]` で毎回 Supabase を叩くと待ちが積み上がる。`Promise.all` 並列取得を統一（既存 `usePerformance.ts` を参考）。
+2. **動的ルートのパフォーマンス**: `[id]/[year]/months/[month]` で毎回 Supabase を叩くと待ちが積み上がる。`Promise.all` 並列取得を統一（既存 `usePerformance.ts` を参考）。
 3. **`status` カラムと表示ラベルの整合**: 年度マスタの `status`（'ACTIVE' / 'CLOSED'）と表示（'進行中' / '確定'）のマッピングは1箇所（`lib/fiscalYear.ts` または `composables/useFiscalYears.ts`）に集約。
 4. **`FISCAL_START_MONTH` との関係**: 年度マスタは「年度年」だけを保持。`FISCAL_START_MONTH = 7` は別箇所で参照され続ける（変更しない）。
 5. **`work_hours NUMERIC(6,2)` の最大値**: `9999.99` になる点に注意。現状 0 件なので問題なし。
