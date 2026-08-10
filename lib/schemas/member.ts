@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { toRowErrors } from '~/lib/schemas/rowErrors'
+import type { RowErrors } from '~/lib/schemas/rowErrors'
 
 /**
  * メンバー1行の入力検証（SPEC 5.1 の m_users DDL に対応）。
@@ -54,26 +56,14 @@ export const memberRowSchema = z.object({
 /** 検証を通したあとのメンバー1行（trim 済み）。 */
 export type MemberRowInput = z.infer<typeof memberRowSchema>
 
-/** 行の検証エラー。列名 → メッセージ。 */
-export type MemberRowErrors = Partial<Record<keyof MemberRowInput, string>>
+/** メンバー1行の検証エラー。列名 → メッセージ。 */
+export type MemberRowErrors = RowErrors<MemberRowInput>
 
 /**
  * 検証結果を「列名 → メッセージ」の形に畳む。
  *
- * 同じ列に複数のエラーが出た場合は最初の1件だけを残す。入力欄の下に出せるのは
- * 1行ぶんで、2件目以降は直しても表示が変わらず、直った実感が得られないため。
+ * 実体は lib/schemas/rowErrors.ts の toRowErrors。呼び出し側で型引数を
+ * 書かずに済むよう、メンバー用に束ねた別名として残している。
  */
-export const toMemberRowErrors = (issues: readonly z.ZodIssue[]): MemberRowErrors => {
-  const errors: MemberRowErrors = {}
-
-  for (const issue of issues) {
-    const field = issue.path[0]
-    // path が空の issue（オブジェクト全体に対するエラー）は列に紐付けられない。
-    if (typeof field !== 'string') continue
-
-    const key = field as keyof MemberRowInput
-    if (errors[key] === undefined) errors[key] = issue.message
-  }
-
-  return errors
-}
+export const toMemberRowErrors = (issues: readonly z.ZodIssue[]): MemberRowErrors =>
+  toRowErrors<MemberRowInput>(issues)
