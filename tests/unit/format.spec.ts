@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatYen } from '~/lib/format'
+import { formatPercent, formatPointDiff, formatSignedPercent, formatYen } from '~/lib/format'
 
 describe('formatYen', () => {
   it('3桁区切りのカンマと ¥ を付ける', () => {
@@ -37,5 +37,64 @@ describe('formatYen', () => {
     // 丸め前のまま渡る経路がある。表示側でも必ず整数に落とす。
     expect(formatYen(1000.4)).toBe('¥1,000')
     expect(formatYen(1000.5)).toBe('¥1,001')
+  })
+})
+
+describe('formatPercent', () => {
+  it('小数第1位まで出して % を付ける', () => {
+    expect(formatPercent(23.456)).toBe('23.5%')
+  })
+
+  it('0% は「-」に倒さない', () => {
+    // 売上0の月は利益率0%が正しい値（SPEC 6.1-⑥）。データなしと混同させない。
+    expect(formatPercent(0)).toBe('0.0%')
+  })
+
+  it('負の率はそのまま符号を付けて出す', () => {
+    expect(formatPercent(-12.3)).toBe('-12.3%')
+  })
+
+  it('null はデータなしの記号にする', () => {
+    expect(formatPercent(null)).toBe('-')
+  })
+})
+
+describe('formatSignedPercent', () => {
+  it('増加には + を付ける', () => {
+    expect(formatSignedPercent(8.24)).toBe('+8.2%')
+  })
+
+  it('減少には - を付ける', () => {
+    expect(formatSignedPercent(-5.06)).toBe('-5.1%')
+  })
+
+  it('増減0でも + を付ける', () => {
+    // 符号を省くと、前年差なのかその場の実数値なのかが読み手に判別できない。
+    expect(formatSignedPercent(0)).toBe('+0.0%')
+  })
+
+  it('null はデータなしの記号にする', () => {
+    // 前年度の実績がない場合の表示（SPEC 4.1）。
+    expect(formatSignedPercent(null)).toBe('-')
+  })
+})
+
+describe('formatPointDiff', () => {
+  it('増加には + を付けて pt を添える', () => {
+    expect(formatPointDiff(1.83)).toBe('+1.8pt')
+  })
+
+  it('減少には - を付ける', () => {
+    expect(formatPointDiff(-2.26)).toBe('-2.3pt')
+  })
+
+  it('null はデータなしの記号にする', () => {
+    expect(formatPointDiff(null)).toBe('-')
+  })
+
+  it('単位は % ではなく pt', () => {
+    // 率どうしの比較は増減率ではなくポイント差で表す（SPEC 4.1）。
+    // % で実装すると意味が変わる回帰テスト。
+    expect(formatPointDiff(1.8)).not.toContain('%')
   })
 })
