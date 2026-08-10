@@ -778,7 +778,7 @@
 >
 > **★ `startsWith(to)` ではなく `startsWith(\`${to}/\`)` である必然性。**
 > プランの文言どおり素の `startsWith('/projects')` で実装すると、
-> `/projectsXYZ` のような**別ルートまで活性になる**。区切りの `/` を必ず含めることで
+> `/projectsXYZ` のような**別ルートまで活性になる**。区切りの `/`を必ず含めることで
 > セグメント境界を守っている。`navActive.spec.ts` の `/projectsXYZ` のケースが
 > この境界の番人で、緩めた瞬間に落ちる。
 >
@@ -812,15 +812,58 @@
 
 **受け入れ基準:**
 
-- [ ] `m_projects` 全件がカードリストで表示され、件数も表示される
-- [ ] カードクリックで `/projects/[id]/years` に遷移する
-- [ ] 「プロジェクト編集」ボタンで `/projects/edit` に遷移する
-- [ ] 0件 / ローディング / エラー の3状態が破綻なく表示される
+- [x] `m_projects` 全件がカードリストで表示され、件数も表示される
+- [x] カードクリックで `/projects/[id]/years` に遷移する
+- [x] 「プロジェクト編集」ボタンで `/projects/edit` に遷移する
+- [x] 0件 / ローディング / エラー の3状態が破綻なく表示される
 
 **検証:** dev環境で `/projects` を開き、PJ 0件 / 1件 / 複数件で目視確認。
 **依存:** Task 17（年度マスタと並行可）
-**触るファイル:** `pages/projects/index.vue`, `composables/useProjectsList.ts`
+**触るファイル:** `pages/projects/index.vue`, `components/Breadcrumbs.vue`（新規）
 **規模:** S
+
+> **★ `composables/useProjectsList.ts` は作らなかった**（当初の「触るファイル」から外した）。
+> 既存の `useProjects.ts` に `fetchProjects` / `status` / `errorMessage` が揃っており、
+> 分割代入で取得系だけ受ければそのまま使える。`pages/performance/input.vue` が
+> `{ projects, fetchProjects }` だけを受けている先例と同じ形。新設すると同じ
+> `select` を2箇所に持つことになり、`composables/` はカバレッジ対象外
+> （`vitest.config.ts` で明示）なので重複を検知する手段もない。
+>
+> **★ `components/Breadcrumbs.vue` を前倒しで作った**（当初は実績閲覧画面の担当）。
+> デザイン画像3枚（`project-select` / `year-select` / `performance-view`）で
+> 要素数が1〜4と可変で、後続3画面すべてで使う。
+> **リンクにするかは `to` の有無ではなく「最後の要素か」で判定している。**
+> `to` だけで見ると、呼び出し側が末尾に `to` を渡したとき現在地が自分自身への
+> リンクになる。最後は必ず現在地なので、そこで分岐させる。
+>
+> **`pages/performance/input.vue` の既存パンくずは置換していない。**
+> あちらはリンクなしの `<p>` 1行で構成が異なり、置換すると input.vue 側の
+> 回帰確認が要る。3画面で使われ方が出揃ってから寄せるほうが安全。
+>
+> **設計上の判断:**
+>
+> - **行は `<table>` ではなく `<div>` + `NuxtLink`。** 行全体がリンクなので、
+>   `<tr>` を `<a>` で包むことになり HTML として不正になる。メンバー一覧の
+>   `<table>` 構造はここでは踏襲できない
+> - **サブタイトルの件数は取得成功時だけ出す。** ローディング中に「全0件」と
+>   出ると、0件と読み込み中が区別できない
+> - **状態分岐4つ（IDLE+LOADING / ERROR / 0件 / 一覧）はメンバー一覧を踏襲。**
+>   `IDLE` をローディング側に含めるのは、`onMounted` 前の1フレームで
+>   「0件です」が見えるのを防ぐため
+>
+> **★ 白いボタンは `color="white"` + `variant="solid"`（レビュー指摘で2度直した）。**
+> `@nuxt/ui` の `variant` と `color` の組み合わせは直感に反する:
+>
+> | 指定 | 実際の背景 |
+> | --- | --- |
+> | `color="gray" variant="solid"` | `bg-gray-50`（灰色。白ではない） |
+> | `color="gray" variant="outline"` | **透明**（`disabled:bg-transparent`）でページ地色が透ける |
+> | `color="white" variant="solid"` | `bg-white` + `ring-gray-300`（これが正解） |
+>
+> `white` は `variant` ではなく **`color`** として定義されている
+> （`node_modules/@nuxt/ui/dist/runtime/ui.config/elements/button.js` の
+> `color.white.solid`）。`outline` を「白背景＋枠線」と思い込むと必ず外す。
+> 実機で確認しないと、灰色と白の差はスクリーンショットの縮尺次第で見落とす。
 
 #### Task 19.2: 年度選択画面（`/projects/[id]/years`）
 
