@@ -103,10 +103,10 @@ const load = async () => {
 
   await Promise.all([fetchProjects(), fetchMembers(), fetchMonths()])
   await fetchPerformance(fiscalYear.value, month.value, projectId.value, members.value)
-  ;[previousMonth.value, nextMonth.value] = await Promise.all([
-    buildNeighbor(-1),
-    buildNeighbor(1),
-  ])
+    ;[previousMonth.value, nextMonth.value] = await Promise.all([
+      buildNeighbor(-1),
+      buildNeighbor(1),
+    ])
 }
 
 onMounted(load)
@@ -123,36 +123,26 @@ watch(() => route.params.month, load)
     ]" />
 
     <PageHeader
-      :title="fiscalYear !== null && month !== null ? `${toCalendarYear(fiscalYear, month)}年${month}月の実績` : '実績'"
+      :title="fiscalYear !== null && month !== null ? `${toCalendarYear(fiscalYear, month)}年${month}月の実績（${fiscalYear}年度）` : '実績'"
       :subtitle="lastUpdated ? `最終更新: ${lastUpdated}` : undefined">
       <template #actions>
         <div v-if="!isNotFound" class="flex items-center gap-2">
           <div class="flex items-center overflow-hidden rounded-lg border border-slate-200">
-            <NuxtLink v-if="previousMonth?.hasRecords" :to="previousMonth.to"
+            <NuxtLink v-if="previousMonth" :to="previousMonth.to"
               class="flex items-center gap-1 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
               <UIcon name="i-lucide-chevron-left" class="h-4 w-4" />
               <span>{{ previousMonth.month }}月</span>
             </NuxtLink>
-            <span v-else aria-disabled="true"
-              class="flex cursor-not-allowed select-none items-center gap-1 px-3 py-2.5 text-sm text-slate-300">
-              <UIcon name="i-lucide-chevron-left" class="h-4 w-4" />
-              <span>{{ previousMonth?.month ?? '-' }}月</span>
-            </span>
 
             <span class="border-x border-slate-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700">
               {{ month }}月
             </span>
 
-            <NuxtLink v-if="nextMonth?.hasRecords" :to="nextMonth.to"
+            <NuxtLink v-if="nextMonth" :to="nextMonth.to"
               class="flex items-center gap-1 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
               <span>{{ nextMonth.month }}月</span>
               <UIcon name="i-lucide-chevron-right" class="h-4 w-4" />
             </NuxtLink>
-            <span v-else aria-disabled="true"
-              class="flex cursor-not-allowed select-none items-center gap-1 px-3 py-2.5 text-sm text-slate-300">
-              <span>{{ nextMonth?.month ?? '-' }}月</span>
-              <UIcon name="i-lucide-chevron-right" class="h-4 w-4" />
-            </span>
           </div>
 
           <UButton :to="editHref" icon="i-lucide-square-pen" color="white" class="py-2.5 px-4">
