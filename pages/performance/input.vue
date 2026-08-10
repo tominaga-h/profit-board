@@ -23,7 +23,9 @@ const route = useRoute()
 const { members, fetchMembers } = useMembers()
 const { projects, fetchProjects } = useProjects()
 const { fiscalYears } = useFiscalYears()
-const { form, status, errorMessage, fetchPerformance, resetForm } = usePerformance()
+const { form, status, errorMessage, fetchPerformance, resetForm, isSaving, saveErrorMessage, savePerformance } =
+  usePerformance()
+const { displayName } = useAppUser()
 
 const yearOptions = computed(() =>
   fiscalYears.value.map(({ year }) => ({
@@ -208,7 +210,7 @@ const unfilledCount = computed(
 // --- 入力操作（Task 9） ---------------------------------------------
 
 const addSalesRow = () => {
-  form.value.sales.push({ key: crypto.randomUUID(), category_small: '', amount: 0 })
+  form.value.sales.push({ key: crypto.randomUUID(), id: null, category_small: '', amount: 0 })
 }
 
 const removeSalesRow = (draft: SalesDraft) => {
@@ -270,6 +272,39 @@ const validateLater = () => {
 const salesErrorFor = (draft: SalesDraft): SalesRowErrors => salesErrors.value.get(draft.key) ?? {}
 const costErrorFor = (draft: CostDraft): CostRowErrors => costErrors.value.get(draft.key) ?? {}
 
+/** 保存できたことを伝える一時メッセージ。 */
+const savedMessage = ref<string | null>(null)
+
+const handleSave = async () => {
+  savedMessage.value = null
+  if (!validate()) return
+
+  // 認証済みなら必ず名前が取れる。取れないのは想定外の状態なので、
+  // 誰が更新したか分からないデータを残さず中断する。
+  const updatedBy = displayName.value
+  if (!updatedBy) {
+    saveErrorMessage.value = 'ログイン情報を取得できませんでした。再読み込みしてください。'
+    return
+  }
+
+  const saved = await savePerformance(
+    Number(selectedYear.value),
+    Number(selectedMonth.value),
+    Number(selectedProject.value),
+    updatedBy,
+  )
+
+  // 失敗時は部分適用が起きている可能性があるので、成否によらず取り直す。
+  await fetchPerformance(
+    Number(selectedYear.value),
+    Number(selectedMonth.value),
+    Number(selectedProject.value),
+    members.value,
+  )
+
+  if (saved) savedMessage.value = '保存しました。'
+}
+
 /** 入力欄の共通クラス。エラー時だけ枠を赤くする。 */
 const inputClass = (hasError: boolean) => [
   'w-full rounded-lg border px-3 py-2 text-sm text-slate-900 outline-none',
@@ -284,7 +319,7 @@ const readonlyClass =
 /** 人日の表示。小数第2位まで持つが、末尾の0は落として読みやすくする。 */
 const formatWorkDays = (workHours: number): string => String(calcWorkDays(workHours))
 
-/** 最終更新の表示（Task 10 が t_status に書き込むまでは値がない）。 */
+/** 最終更新の表示。一度も保存していない月は値がない。 */
 const lastUpdated = computed(() => {
   const record = form.value.status
   if (!record?.updated_by) return null
@@ -306,14 +341,20 @@ const lastUpdated = computed(() => {
 
     <PageHeader title="売上・費用実績入力" subtitle="プロジェクト×年月の実績を入力します">
       <template #actions>
-        <!-- 保存は Task 10。押せるのに何も起きない状態は作らない。 -->
-        <UButton icon="i-lucide-check" disabled title="保存は Task 10 で実装します">
+        <UButton icon="i-lucide-check" class="py-2.5 px-4" :loading="isSaving"
+          :disabled="!isReady || isSaving" @click="handleSave">
           保存する
         </UButton>
       </template>
     </PageHeader>
 
     <p v-if="lastUpdated" class="-mt-4 mb-4 text-xs text-slate-400">最終更新: {{ lastUpdated }}</p>
+
+    <UAlert v-if="saveErrorMessage" color="red" variant="subtle" icon="i-lucide-circle-alert" class="mb-4"
+      :description="saveErrorMessage" />
+
+    <UAlert v-else-if="savedMessage" color="green" variant="subtle" icon="i-lucide-check"
+      class="mb-4" :description="savedMessage" />
 
     <!-- 条件選択とサマリー -->
     <div class="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-4">

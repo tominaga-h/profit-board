@@ -270,7 +270,8 @@ watch(() => route.params.month, load)
               <td class="px-3 py-3 text-sm" :class="draft.work_hours === 0 ? '' : 'text-slate-900'">
                 {{ draft.label }}
               </td>
-              <td class="px-3 py-3 text-right text-sm tabular-nums">{{ draft.work_hours.toFixed(1) }}</td>
+              <!-- toFixed(1) にすると 0.25h が 0.3 に見える（DB は小数第2位まで持つ）。 -->
+              <td class="px-3 py-3 text-right text-sm tabular-nums">{{ draft.work_hours }}</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ calcWorkDays(draft.work_hours) }}</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ formatYen(draft.unit_price) }}</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ formatYen(laborCost(draft)) }}</td>
