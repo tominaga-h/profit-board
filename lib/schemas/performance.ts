@@ -27,8 +27,8 @@ export const salesRowSchema = z.object({
 /**
  * 稼働行の入力検証（SPEC 5.1 の t_costs DDL に対応）。
  *
- * ★ work_hours は NUMERIC(6,1)。整数部5桁・小数1桁なので上限は 99999.9。
- *   小数第2位以下を入れると DB 側で丸められ、画面の人日計算と保存値が食い違う。
+ * ★ work_hours は NUMERIC(6,2)。整数部4桁・小数2桁なので上限は 9999.99。
+ *   小数第3位以下を入れると DB 側で丸められ、画面の人日計算と保存値が食い違う。
  *
  * ★ 稼働時間の「未入力」は 0 として扱うので、min(0) は空欄を弾かない。
  *   0 は「このメンバーはこの月にこのプロジェクトへ稼働しなかった」という
@@ -38,12 +38,12 @@ export const costRowSchema = z.object({
   work_hours: z
     .number({ invalid_type_error: '稼働時間を入力してください' })
     .min(0, '稼働時間は0以上で入力してください')
-    .max(99_999.9, '稼働時間が大きすぎます')
-    // ★ 10倍して整数になるかで小数第1位までを判定する。
-    //   (v * 10) の浮動小数誤差を避けるため roundTo を通してから比較する。
+    .max(9_999.99, '稼働時間が大きすぎます')
+    // ★ 100倍して整数になるかで小数第2位までを判定する。
+    //   value * 100 と書くと浮動小数の誤差が乗るため、指数表記を経由して桁を移す。
     .refine(
-      (value) => Number(`${value}e1`) === Math.round(Number(`${value}e1`)),
-      '稼働時間は小数第1位までで入力してください',
+      (value) => Number(`${value}e2`) === Math.round(Number(`${value}e2`)),
+      '稼働時間は小数第2位までで入力してください',
     ),
   unit_price: z
     .number({ invalid_type_error: '単価を入力してください' })

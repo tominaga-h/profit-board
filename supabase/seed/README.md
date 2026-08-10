@@ -42,7 +42,7 @@ id がずれている場合は CSV の `project_id` / `user_id` を実際の値�
 `amount` は `work_days × unit_price`。時間から直接計算すると画面の人日と
 金額の辻褄が合わなくなるため、この順で求めた値を入れている。
 
-`work_hours` は現状 `NUMERIC(6,1)` なので小数第1位まで。
+`work_hours` は `NUMERIC(6,2)` なので小数第2位まで（上限 9999.99）。
 
 取り込み後、`/projects/1/2023/1` は次の値になる。
 

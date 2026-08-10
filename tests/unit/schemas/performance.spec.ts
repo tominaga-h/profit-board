@@ -90,26 +90,29 @@ describe('costRowSchema', () => {
     )
   })
 
-  it('稼働時間は小数第1位まで許し、第2位以下を弾く（NUMERIC(6,1)）', () => {
-    // デザイン画像の入力例（2.0h / 12.0h / 120.0h）はすべて第1位まで。
+  it('稼働時間は小数第2位まで許し、第3位以下を弾く（NUMERIC(6,2)）', () => {
+    // 15分単位（0.25h）を通すことがこの桁に広げた理由。
+    expect(costRowSchema.safeParse({ ...validRow, work_hours: 0.25 }).success).toBe(true)
+    expect(costRowSchema.safeParse({ ...validRow, work_hours: 2.25 }).success).toBe(true)
+    expect(costRowSchema.safeParse({ ...validRow, work_hours: 0.01 }).success).toBe(true)
     expect(costRowSchema.safeParse({ ...validRow, work_hours: 2.5 }).success).toBe(true)
-    expect(costRowSchema.safeParse({ ...validRow, work_hours: 0.1 }).success).toBe(true)
-    expect(errorOf({ ...validRow, work_hours: 2.25 }, 'work_hours')).toBe(
-      '稼働時間は小数第1位までで入力してください',
+    expect(errorOf({ ...validRow, work_hours: 2.256 }, 'work_hours')).toBe(
+      '稼働時間は小数第2位までで入力してください',
     )
   })
 
   it('浮動小数の誤差で正当な値を弾かない', () => {
-    // ★ 素朴に (v * 10) % 1 === 0 と書くと 0.3 * 10 = 2.9999... で落ちる。
+    // ★ 素朴に (v * 100) % 1 === 0 と書くと 0.29 * 100 = 28.999... で落ちる。
     //   指数表記を経由すれば10進の桁移動になり、この罠を踏まない。
-    for (const hours of [0.3, 0.7, 1.1, 8.3, 16.7, 120.9]) {
+    for (const hours of [0.3, 0.7, 1.1, 8.3, 16.7, 120.9, 0.05, 0.29, 1.25, 8.15, 120.35]) {
       expect(costRowSchema.safeParse({ ...validRow, work_hours: hours }).success).toBe(true)
     }
   })
 
-  it('稼働時間は上限99999.9を超える値を弾く（NUMERIC(6,1)）', () => {
-    expect(costRowSchema.safeParse({ ...validRow, work_hours: 99_999.9 }).success).toBe(true)
-    expect(errorOf({ ...validRow, work_hours: 100_000 }, 'work_hours')).toBe(
+  it('稼働時間は上限9999.99を超える値を弾く（NUMERIC(6,2)）', () => {
+    // 桁数は6のままなので、小数を1桁増やした分だけ整数部の上限が下がる。
+    expect(costRowSchema.safeParse({ ...validRow, work_hours: 9_999.99 }).success).toBe(true)
+    expect(errorOf({ ...validRow, work_hours: 10_000 }, 'work_hours')).toBe(
       '稼働時間が大きすぎます',
     )
   })

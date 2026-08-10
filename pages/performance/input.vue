@@ -493,7 +493,7 @@ const lastUpdated = computed(() => {
 
             <td class="px-3 py-3">
               <div class="relative">
-                <input v-model.number="draft.work_hours" type="number" min="0" step="0.1" :class="[
+                <input v-model.number="draft.work_hours" type="number" min="0" step="0.01" :class="[
                   inputClass(!!costErrorFor(draft).work_hours),
                   'pr-7 text-right tabular-nums',
                 ]" :aria-invalid="!!costErrorFor(draft).work_hours" :aria-label="`${draft.label} の稼働時間`"
