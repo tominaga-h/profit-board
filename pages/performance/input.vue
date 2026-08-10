@@ -353,8 +353,8 @@ const lastUpdated = computed(() => {
           閲覧画面に戻る
         </UButton>
 
-        <UButton icon="i-lucide-check" class="py-2.5 px-4" :loading="isSaving"
-          :disabled="!isReady || isSaving" @click="handleSave">
+        <UButton icon="i-lucide-check" class="py-2.5 px-4" :loading="isSaving" :disabled="!isReady || isSaving"
+          @click="handleSave">
           保存する
         </UButton>
       </template>
@@ -365,8 +365,8 @@ const lastUpdated = computed(() => {
     <UAlert v-if="saveErrorMessage" color="red" variant="subtle" icon="i-lucide-circle-alert" class="mb-4"
       :description="saveErrorMessage" />
 
-    <UAlert v-else-if="savedMessage" color="green" variant="subtle" icon="i-lucide-check"
-      class="mb-4" :description="savedMessage" />
+    <UAlert v-else-if="savedMessage" color="green" variant="subtle" icon="i-lucide-check" class="mb-4"
+      :description="savedMessage" />
 
     <!-- 条件選択とサマリー -->
     <div class="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-4">
@@ -387,7 +387,8 @@ const lastUpdated = computed(() => {
               class="w-72" />
           </div>
 
-          <UBadge v-if="isReady && unfilledCount > 0" color="amber" variant="subtle" class="mb-2 shrink-0">
+          <UBadge v-if="isReady && unfilledCount > 0" color="amber" size="sm" variant="subtle"
+            class="mt-2 py-2 px-3 shrink-0">
             <UIcon name="i-lucide-triangle-alert" class="mr-1 h-3.5 w-3.5" />
             未入力 {{ unfilledCount }} 名
           </UBadge>
