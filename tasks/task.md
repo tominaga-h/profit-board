@@ -867,20 +867,66 @@
 
 #### Task 19.2: 年度選択画面（`/projects/[id]/years`）
 
-**内容:** デザイン画像: `design/year-select.png`。`m_fiscal_years` 全件 + `t_sales`/`t_costs` を `project_id` で集計し、年度ごとの「年間売上」「年間粗利」を算出。3カラムグリッド。`getCurrentFiscalYear()` と一致する年度に「今年度」バッジを自動付与。ステータスラベル（`ACTIVE` → 「進行中」 / `CLOSED` → 「確定」）。「＋ 年度を追加」ボタンは `YearAddModal.vue` を開く（モーダル内で年度数値入力 + 「保存」/「キャンセル」ボタン）。保存: バリデーション（数値・範囲 1900-2999・一意性）後 `m_fiscal_years` に INSERT。成功: モーダル閉じて一覧再フェッチ。失敗: エラー表示。
+**内容:** デザイン画像: `design/year-select.png`。`m_fiscal_years` 全件 + `t_sales`/`t_costs` を `project_id` で集計し、年度ごとの「年間売上」「年間粗利」を算出。3カラムグリッド。`getCurrentFiscalYear()` と一致する年度に「今年度」バッジを自動付与。「＋ 年度を追加」ボタンは `YearAddModal.vue` を開く（モーダル内で年度数値入力 + 「保存」/「キャンセル」ボタン）。保存: バリデーション（数値・範囲 1900-2999・一意性）後 `m_fiscal_years` に INSERT。成功: モーダル閉じて一覧再フェッチ。失敗: エラー表示。
 
 **受け入れ基準:**
 
-- [ ] 対象PJの年度カードが3カラムで表示される
-- [ ] 「今年度」バッジがシステム日付ベースで正しく付与される
-- [ ] 「＋ 年度を追加」でモーダルが開き、年度入力 → 保存で年度マスタに追加される
-- [ ] 既存年度と重複する数値は保存時にエラー表示される
-- [ ] 売上・粗利が負値の年度は `-¥X.XM` で赤字表示
+- [x] 対象PJの年度カードが3カラムで表示される
+- [x] 「今年度」バッジがシステム日付ベースで正しく付与される
+- [x] 「＋ 年度を追加」でモーダルが開き、年度入力 → 保存で年度マスタに追加される
+- [x] 既存年度と重複する数値は保存時にエラー表示される
+- [x] 売上・粗利が負値の年度は赤字表示（表記は円固定に変更。下記注記）
 
 **検証:** dev環境でモーダル操作と年度追加を手動確認。`npx vitest run` パス。
 **依存:** Task 17, 19.1
-**触るファイル:** `pages/projects/[id]/years/index.vue`, `components/YearAddModal.vue`, `composables/useProjectYears.ts`, `tests/unit/useProjectYears.spec.ts`
+**触るファイル:** `pages/projects/[id]/years/index.vue`, `components/YearAddModal.vue`, `composables/useProjectYears.ts`
 **規模:** M
+
+> **検証結果:** テスト172件が全件パス（`lib/` を触らないため増減なし）。
+> `make build`（`typeCheck: true`）成功。**受け入れ基準5件はすべてブラウザで実機確認済み。**
+> 年度追加（2023年度）・重複エラー（2026年度）・範囲外（1899）・空欄・
+> 存在しないID（`/projects/999/years`）・カード遷移まで一巡した。
+>
+> **★ ステータスバッジ（進行中/確定）の要件を削除した。**
+> `20260810130000_drop_label_status_from_m_fiscal_years.sql` が
+> 「ユーザー指示により label/status を不要として削除する」として両列を DROP 済みで、
+> 現在の `m_fiscal_years` は `id` / `year` / `created_at` / `updated_at` のみ。
+> **表示の根拠になる列が存在しない。** 当初の要件と `SPEC-MODIFY-1-PLAN.md` の記述は
+> この削除より前に書かれたもので、実装可能性が失われている。
+> デザイン画像の「進行中」「確定」バッジも同じ理由で採用しない。
+> なお「今年度」バッジは `getCurrentFiscalYear()` から導けるので残した。
+>
+> **★ 金額は `-¥X.XM` ではなく円固定にした**（ユーザー確認済み）。
+> デザインは `¥98.5M` の百万円短縮表記だが、plan.md A4 の「円固定」に揃え、
+> 既存の `formatYen` をそのまま使う。新規の書式関数は作らない。
+> 負値を赤くする点は維持している（`formatYen` は `-¥3,500,000` と符号を先頭に返す）。
+> **Task 19.3 の月カードも同じ判断で揃えること**（デザインは同じく `¥7.5M` 表記）。
+>
+> **★ `tests/unit/useProjectYears.spec.ts` は作らなかった**（「触るファイル」から外した）。
+> `vitest.config.ts` の `coverage.include` は `lib/**/*.ts` のみで、
+> `composables/` は「Supabase クライアント等に依存し単体テストの対象外」と明記されている。
+> 本タスクに新規の計算ロジックはなく、集計は既存の `lib/calc.ts`
+> （`sumAmount` / `calcGrossProfit`、カバレッジ100%）を呼ぶだけ。
+>
+> **★ `<input type="number">` の `v-model` は数値を返す**（実装中に踏んだ）。
+> `.number` 修飾子を付けなくても Vue が数値化するため、`ref('')` に
+> 文字列前提で `.trim()` を呼ぶと `TypeError` で保存処理ごと落ちる。
+> 空欄のときだけ `''` が来るので、型は `string | number` で受けて
+> 保存時に一度だけ `Number()` する。
+>
+> **設計上の判断:**
+>
+> - **年度ごとにクエリを投げない。** `project_id` だけで `t_sales`/`t_costs` を
+>   全年度分まとめて取り、`fiscal_year` で畳む。年度 N 件で 2N 回の往復になるのを避ける。
+>   年度一覧と合わせて3本を `Promise.all` で並列に投げる
+> - **重複は事前確認せず `23505` を捕まえる。** 確認と INSERT の間に他の利用者が
+>   同じ年度を登録する競合を、往復を増やさずに塞げる。`fiscalYearInsertSchema` は
+>   範囲しか見ておらず、一意性は DB の UNIQUE 制約に委ねる設計（Task 17 の判断）
+> - **存在しない `[id]` で「見つかりません」を出す。** 放置すると名前が空のまま
+>   カードだけ並ぶ壊れた画面になる。`FetchStatus.SUCCESS` になるまでは
+>   「見つからない」と断定しない（取得前の1フレームで誤表示するため）
+> - **パンくずはプロジェクト名を引けないとき項目ごと省く。** `'...'` を
+>   置くと、存在しない ID の画面でその表示が固定されたまま残る
 
 #### Task 19.3: 月選択画面（`/projects/[id]/years/[year]/months`）
 
