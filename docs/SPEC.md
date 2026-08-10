@@ -192,7 +192,7 @@ CREATE TABLE t_costs (
   project_id INT NOT NULL REFERENCES m_projects(id),
   user_id INT REFERENCES m_users(id), -- NULLの場合は管理費等
   cost_type VARCHAR(50) NOT NULL DEFAULT 'LABOR', -- 'LABOR' or 'MANAGEMENT'
-  work_hours NUMERIC(6, 1) DEFAULT 0,
+  work_hours NUMERIC(6, 2) DEFAULT 0,
   work_days NUMERIC(6, 2) DEFAULT 0,
   unit_price NUMERIC(12, 0) DEFAULT 0,
   amount NUMERIC(12, 0) NOT NULL DEFAULT 0,

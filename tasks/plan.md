@@ -30,7 +30,7 @@ SI会社のプロジェクト別営業成績（売上・費用・粗利）を月
 - **DBスキーマは SPEC 5.1 のDDLをそのまま採用**（カラム追加・変更なし）。
 - **RLSの再帰回避**: 「`m_users` に存在するメールのみ許可」ポリシーを `m_users` 自身にかけると再帰するため、`SECURITY DEFINER` のヘルパー関数 `is_app_user()` を作り全テーブルのポリシーから参照する。
 - **計算ロジックは純粋関数のcomposableに集約**（`lib/calc` / `lib/statusJudge` / `lib/fiscalYear`）。稼働人日・金額・粗利率・ステータス判定・年度⇔暦月変換（7月始まり: month 1〜6 は翌暦年）をUIから分離し、Vitestで単体テストする。
-- **保存はdelete→insert方式**: 実績入力の保存は対象（年度×月×プロジェクト）の `t_sales`/`t_costs` を削除して再挿入、`t_status` はupsert。行の増減管理をシンプルに保つ。
+- **保存は差分適用**: 実績入力の保存は、変更のあった行だけUPDATE・消えた行はDELETE・増えた行はINSERT、`t_status` はupsert。当初は洗い替え（delete→insert）を想定していたが、行を作り直すと `id` と `created_at` が失われ、触っていない行の `updated_at` まで動いて「誰がいつ何を変えたか」が追えなくなるため変更した。マスタ編集（Task 6/7）と同じ方式に揃う。
 - **グラフは `<ClientOnly>` + Chart.js（vue-chartjs）**。SPAだが初期化タイミング問題を避ける。
 - **マイグレーションはSQLファイルで管理**（`supabase/migrations/`）。Supabase SQL Editorに貼れる自己完結SQLとする。
 

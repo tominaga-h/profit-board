@@ -9,6 +9,7 @@ import {
   getCurrentFiscalYear,
   getFiscalMonths,
   previousFiscalMonth,
+  shiftFiscalMonth,
   toCalendarYear,
   toFiscalYear,
 } from '~/lib/fiscalYear'
@@ -338,5 +339,67 @@ describe('calcYoYPointDiff', () => {
 
   it('小数の率でも差分が求まる', () => {
     expect(calcYoYPointDiff(40.1, 35.2)).toBeCloseTo(4.9)
+  })
+})
+
+describe('shiftFiscalMonth', () => {
+  it('年度内では年度が変わらず隣の月へ動く', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 8 }, 1)).toEqual({
+      fiscalYear: 2026,
+      month: 9,
+    })
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 8 }, -1)).toEqual({
+      fiscalYear: 2026,
+      month: 7,
+    })
+  })
+
+  // 暦月の加減算で書くとここが 13月 になる。
+  it('12月の翌月は年度を変えずに1月', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 12 }, 1)).toEqual({
+      fiscalYear: 2026,
+      month: 1,
+    })
+  })
+
+  it('1月の前月は年度を変えずに12月', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 1 }, -1)).toEqual({
+      fiscalYear: 2026,
+      month: 12,
+    })
+  })
+
+  // previousFiscalMonth はここで null を返す。またぐことがこの関数の存在理由。
+  it('年度初月の前月は前年度の末月', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 7 }, -1)).toEqual({
+      fiscalYear: 2025,
+      month: 6,
+    })
+  })
+
+  it('年度末月の翌月は翌年度の初月', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 6 }, 1)).toEqual({
+      fiscalYear: 2027,
+      month: 7,
+    })
+  })
+
+  it('前後に動かすと元に戻る', () => {
+    for (const month of FISCAL_MONTHS) {
+      const origin = { fiscalYear: 2026, month }
+      expect(shiftFiscalMonth(shiftFiscalMonth(origin, 1), -1)).toEqual(origin)
+      expect(shiftFiscalMonth(shiftFiscalMonth(origin, -1), 1)).toEqual(origin)
+    }
+  })
+
+  it('開始月を変えても年度の境界がその月に追従する', () => {
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 4 }, -1, 4)).toEqual({
+      fiscalYear: 2025,
+      month: 3,
+    })
+    expect(shiftFiscalMonth({ fiscalYear: 2026, month: 3 }, 1, 4)).toEqual({
+      fiscalYear: 2027,
+      month: 4,
+    })
   })
 })

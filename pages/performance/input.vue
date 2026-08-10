@@ -22,22 +22,17 @@ const route = useRoute()
 
 const { members, fetchMembers } = useMembers()
 const { projects, fetchProjects } = useProjects()
-const { form, status, errorMessage, fetchPerformance, resetForm } = usePerformance()
+const { fiscalYears } = useFiscalYears()
+const { form, status, errorMessage, fetchPerformance, resetForm, isSaving, saveErrorMessage, savePerformance } =
+  usePerformance()
+const { displayName } = useAppUser()
 
-/**
- * 年度プルダウンの選択肢（plan.md の残論点への回答）。
- *
- * ★ 実績のある年度を DB から引く案は採らない。実績が0件のうちは
- *   プルダウンが空になり、入力画面として成立しないため。
- *   今年度を中心に固定範囲を出せば、新しい年度の入力も最初からできる。
- */
-const CURRENT_FISCAL_YEAR = getCurrentFiscalYear()
-const FISCAL_YEAR_RANGE = [-2, -1, 0, 1].map((offset) => CURRENT_FISCAL_YEAR + offset)
-
-const yearOptions = FISCAL_YEAR_RANGE.map((year) => ({
-  value: String(year),
-  label: `${year}年度`,
-}))
+const yearOptions = computed(() =>
+  fiscalYears.value.map(({ year }) => ({
+    value: String(year),
+    label: `${year}年度`,
+  })),
+)
 
 // 月は FISCAL_MONTHS の並び（7月始まり）を使う。数値昇順にすると
 // 1,2,3... となり年度の並びにならない。
@@ -71,7 +66,7 @@ const projectOptions = computed(() =>
  *   プロジェクトだけは未選択のまま——こちらは既定値を決めようがなく、
  *   先頭を勝手に選ぶと意図しないプロジェクトの入力画面を開いてしまう。
  */
-const selectedYear = ref<string>(String(CURRENT_FISCAL_YEAR))
+const selectedYear = ref<string>('')
 const selectedMonth = ref<string>(String(new Date().getMonth() + 1))
 const selectedProject = ref<string>('')
 
@@ -83,6 +78,13 @@ const selectedProjectName = computed(
   () =>
     projects.value.find((project) => String(project.id) === selectedProject.value)?.service_name ??
     null,
+)
+
+/** 閲覧画面への戻り先。選択が揃うまでは行き先が定まらない。 */
+const viewHref = computed(() =>
+  isReady.value
+    ? `/projects/${selectedProject.value}/${selectedYear.value}/${selectedMonth.value}`
+    : null,
 )
 
 /** 行の検証エラー。キーは draft.key。 */
@@ -105,7 +107,7 @@ const managementError = ref<ManagementCostRowErrors>({})
  */
 const restoreFromQuery = () => {
   const year = route.query.year
-  if (typeof year === 'string' && FISCAL_YEAR_RANGE.includes(Number(year))) {
+  if (typeof year === 'string' && fiscalYears.value.some((fiscalYear) => fiscalYear.year === Number(year))) {
     selectedYear.value = year
   }
 
@@ -125,6 +127,24 @@ onMounted(async () => {
   await Promise.all([fetchMembers(), fetchProjects()])
   restoreFromQuery()
 })
+
+// 年度マスタの取得完了後、クエリ指定がなければ今年度を初期選択する。
+watch(
+  fiscalYears,
+  () => {
+    if (fiscalYears.value.length === 0) return
+    if (selectedYear.value !== '') return
+
+    const currentYear = getCurrentFiscalYear()
+    selectedYear.value = String(
+      fiscalYears.value.some((fiscalYear) => fiscalYear.year === currentYear)
+        ? currentYear
+        : fiscalYears.value[0].year,
+    )
+    restoreFromQuery()
+  },
+  { immediate: true },
+)
 
 /**
  * 条件が変わったら読み直す。
@@ -197,7 +217,7 @@ const unfilledCount = computed(
 // --- 入力操作（Task 9） ---------------------------------------------
 
 const addSalesRow = () => {
-  form.value.sales.push({ key: crypto.randomUUID(), category_small: '', amount: 0 })
+  form.value.sales.push({ key: crypto.randomUUID(), id: null, category_small: '', amount: 0 })
 }
 
 const removeSalesRow = (draft: SalesDraft) => {
@@ -259,6 +279,39 @@ const validateLater = () => {
 const salesErrorFor = (draft: SalesDraft): SalesRowErrors => salesErrors.value.get(draft.key) ?? {}
 const costErrorFor = (draft: CostDraft): CostRowErrors => costErrors.value.get(draft.key) ?? {}
 
+/** 保存できたことを伝える一時メッセージ。 */
+const savedMessage = ref<string | null>(null)
+
+const handleSave = async () => {
+  savedMessage.value = null
+  if (!validate()) return
+
+  // 認証済みなら必ず名前が取れる。取れないのは想定外の状態なので、
+  // 誰が更新したか分からないデータを残さず中断する。
+  const updatedBy = displayName.value
+  if (!updatedBy) {
+    saveErrorMessage.value = 'ログイン情報を取得できませんでした。再読み込みしてください。'
+    return
+  }
+
+  const saved = await savePerformance(
+    Number(selectedYear.value),
+    Number(selectedMonth.value),
+    Number(selectedProject.value),
+    updatedBy,
+  )
+
+  // 失敗時は部分適用が起きている可能性があるので、成否によらず取り直す。
+  await fetchPerformance(
+    Number(selectedYear.value),
+    Number(selectedMonth.value),
+    Number(selectedProject.value),
+    members.value,
+  )
+
+  if (saved) savedMessage.value = '保存しました。'
+}
+
 /** 入力欄の共通クラス。エラー時だけ枠を赤くする。 */
 const inputClass = (hasError: boolean) => [
   'w-full rounded-lg border px-3 py-2 text-sm text-slate-900 outline-none',
@@ -273,7 +326,7 @@ const readonlyClass =
 /** 人日の表示。小数第2位まで持つが、末尾の0は落として読みやすくする。 */
 const formatWorkDays = (workHours: number): string => String(calcWorkDays(workHours))
 
-/** 最終更新の表示（Task 10 が t_status に書き込むまでは値がない）。 */
+/** 最終更新の表示。一度も保存していない月は値がない。 */
 const lastUpdated = computed(() => {
   const record = form.value.status
   if (!record?.updated_by) return null
@@ -295,14 +348,25 @@ const lastUpdated = computed(() => {
 
     <PageHeader title="売上・費用実績入力" subtitle="プロジェクト×年月の実績を入力します">
       <template #actions>
-        <!-- 保存は Task 10。押せるのに何も起きない状態は作らない。 -->
-        <UButton icon="i-lucide-check" disabled title="保存は Task 10 で実装します">
+        <!-- 未保存の変更は破棄される。保存の左に置いて、先に保存する導線を自然にする。 -->
+        <UButton v-if="viewHref" :to="viewHref" icon="i-lucide-eye" color="white" class="py-2.5 px-4">
+          閲覧画面に戻る
+        </UButton>
+
+        <UButton icon="i-lucide-check" class="py-2.5 px-4" :loading="isSaving" :disabled="!isReady || isSaving"
+          @click="handleSave">
           保存する
         </UButton>
       </template>
     </PageHeader>
 
     <p v-if="lastUpdated" class="-mt-4 mb-4 text-xs text-slate-400">最終更新: {{ lastUpdated }}</p>
+
+    <UAlert v-if="saveErrorMessage" color="red" variant="subtle" icon="i-lucide-circle-alert" class="mb-4"
+      :description="saveErrorMessage" />
+
+    <UAlert v-else-if="savedMessage" color="green" variant="subtle" icon="i-lucide-check" class="mb-4"
+      :description="savedMessage" />
 
     <!-- 条件選択とサマリー -->
     <div class="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-4">
@@ -323,7 +387,8 @@ const lastUpdated = computed(() => {
               class="w-72" />
           </div>
 
-          <UBadge v-if="isReady && unfilledCount > 0" color="amber" variant="subtle" class="mb-2 shrink-0">
+          <UBadge v-if="isReady && unfilledCount > 0" color="amber" size="sm" variant="subtle"
+            class="mt-2 py-2 px-3 shrink-0">
             <UIcon name="i-lucide-triangle-alert" class="mr-1 h-3.5 w-3.5" />
             未入力 {{ unfilledCount }} 名
           </UBadge>
@@ -482,7 +547,7 @@ const lastUpdated = computed(() => {
 
             <td class="px-3 py-3">
               <div class="relative">
-                <input v-model.number="draft.work_hours" type="number" min="0" step="0.1" :class="[
+                <input v-model.number="draft.work_hours" type="number" min="0" step="0.01" :class="[
                   inputClass(!!costErrorFor(draft).work_hours),
                   'pr-7 text-right tabular-nums',
                 ]" :aria-invalid="!!costErrorFor(draft).work_hours" :aria-label="`${draft.label} の稼働時間`"

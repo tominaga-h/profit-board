@@ -22,6 +22,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      m_fiscal_years: {
+        Row: {
+          created_at: string
+          id: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       m_projects: {
         Row: {
           company_name: string

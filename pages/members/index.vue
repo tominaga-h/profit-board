@@ -18,7 +18,7 @@ onMounted(fetchMembers)
           to を渡すと UButton は NuxtLink になるので、右クリックで新規タブも開ける。
           色は app.config.ts の primary: 'blue' が既定で効くため指定しない。
         -->
-        <UButton to="/members/edit" icon="i-lucide-pencil">編集する</UButton>
+        <UButton to="/members/edit" icon="i-lucide-square-pen" class="py-2.5 px-4">編集する</UButton>
       </template>
     </PageHeader>
 
@@ -27,10 +27,8 @@ onMounted(fetchMembers)
         読み込み中。IDLE も同じ枝に入れるのは、onMounted が走る前の
         1フレームで v-else に落ちて「0件です」が一瞬見えるのを防ぐため。
       -->
-      <div
-        v-if="status === FetchStatus.IDLE || status === FetchStatus.LOADING"
-        class="flex items-center justify-center gap-2 px-6 py-16 text-sm text-slate-500"
-      >
+      <div v-if="status === FetchStatus.IDLE || status === FetchStatus.LOADING"
+        class="flex items-center justify-center gap-2 px-6 py-16 text-sm text-slate-500">
         <UIcon name="i-lucide-loader-circle" class="h-5 w-5 animate-spin" />
         <span>読み込み中...</span>
       </div>
@@ -41,12 +39,7 @@ onMounted(fetchMembers)
           ★ description は string で null を受け付けない。この枝では v-if による
             narrowing が効かないので ?? '' が必要（無いと vue-tsc が落ちる）。
         -->
-        <UAlert
-          color="red"
-          variant="subtle"
-          icon="i-lucide-circle-alert"
-          :description="errorMessage ?? ''"
-        />
+        <UAlert color="red" variant="subtle" icon="i-lucide-circle-alert" :description="errorMessage ?? ''" />
       </div>
 
       <!-- 0件 -->
