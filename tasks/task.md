@@ -1,6 +1,7 @@
 # タスク一覧：ProfitBoard
 
 > プラン本体: [plan.md](./plan.md)（決定事項A1〜A8・アーキテクチャ決定・リスクはそちらを参照）
+> 仕様変更v1のプラン: [SPEC-MODIFY-1-PLAN.md](./SPEC-MODIFY-1-PLAN.md)（`docs/SPEC-MODIFY-1.md` の3変更に対応するタスク設計）
 > 原則: `docs/SPEC.md` を正とする。部門・PMカラムは存在しない（A1/A2で削除確定）。
 
 ---
@@ -650,70 +651,219 @@
 
 ---
 
-## フェーズ5: 集計・可視化
+## フェーズ5: 集計・可視化（破棄：SPEC-MODIFY-1で対応）
 
-### Task 11: プロジェクト営業成績一覧画面（`/projects`）
+> **破棄理由:** `docs/SPEC-MODIFY-1.md` の「営業成績の閲覧はダッシュボードに限定」「プロジェクト一覧はドリルダウン入口」という責務分離により、Task 11-14 をそのまま実装すると責務が破綻する。  
+> 詳細: `tasks/SPEC-MODIFY-1-PLAN.md` のフェーズ5.5「仕様変更v1（SPEC-MODIFY-1）」で Task 17-21 として再設計する。
+
+### Task 11: プロジェクト営業成績一覧画面（`/projects`） — 破棄
 
 **内容:** 年度・月・ステータス（成長/順調/注意/警告、A3）のフィルタ。当月KPIサマリー4種（当月売上・当月費用・営業利益・利益率、前月比付き）。プロジェクト一覧テーブル（プロジェクト名・売上・費用・営業利益・利益率・前月比・ステータスバッジ）。ステータスは `useStatusJudge` でクライアント判定（バッジ色はSPEC 6.2: 緑 `#22C55E` / 黄 `#EAB308` / 赤 `#EF4444`）。行アクションから「プロジェクト編集」「実績入力」（対象プロジェクト・年月をクエリで引き継ぎ）へ遷移。赤字はマイナス表示を赤色に。
 
 **受け入れ基準:**
 
-- [ ] フィルタ変更で一覧とKPIが再集計される（ステータスフィルタ含む）
-- [ ] ステータスバッジがSPEC 6.2 の判定・配色と一致（前月なし月の規則含む）
-- [ ] 「実績入力」ボタンで該当プロジェクト・年月が選択済みの入力画面が開く
+- [x] 破棄（SPEC-MODIFY-1: 4階層の第1階層「プロジェクト選択画面」として Task 19.1 で再設計）
+- [x] 破棄（SPEC-MODIFY-1: 営業成績の一覧表示は Task 19.3「月選択」+ Task 19.4「実績閲覧」とダッシュボードに分離）
+- [x] 破棄（SPEC-MODIFY-1: 編集導線は Task 19.4「実績閲覧」画面の「この月の実績を編集」ボタンで再設計）
 
 **検証:** シードデータで判定4パターン＋前月なしパターンを作り、表示を目視確認。
 **依存:** T4, T10
 **触るファイル:** `pages/projects/index.vue`, `composables/useProjectSummary.ts`, `components/StatusBadge.vue`, `components/KpiCard.vue`
 **規模:** M
 
-### Task 12: ダッシュボード — 年度集計とKPIカード
+### Task 12: ダッシュボード — 年度集計とKPIカード — 破棄
 
 **内容:** 年度選択プルダウン（デフォルト今年度）。選択年度の `t_sales`/`t_costs` を全プロジェクト分取得し、月別・プロジェクト別に集計するcomposableを実装（A1により部門別集計はなし）。KPIサマリーカード4種（売上高合計・費用合計・営業利益合計・利益率）に前年同期比（%/pt、A6。過去データなしは「-」）を表示。
 
 **受け入れ基準:**
 
-- [ ] 年度切替でKPIが再集計される
-- [ ] 前年同期比の%・pt表記と増減の色分けが正しい。前年度データがない場合「-」
-- [ ] 集計値が実績入力画面の合計と一致する
+- [x] 破棄（SPEC-MODIFY-1: KPIサマリは Task 20「ダッシュボード（俯瞰）」に統合）
+- [x] 破棄（SPEC-MODIFY-1: 前年同期比ロジックは Task 20 で再利用）
+- [x] 破棄（SPEC-MODIFY-1: 実績入力画面との合計一致は Task 20 で再検証）
 
 **検証:** シードデータの手計算値と照合。集計ロジックはVitestで単体テスト追加。
 **依存:** T4, T10
 **触るファイル:** `pages/dashboard.vue`（または `pages/index.vue` リダイレクト）, `composables/useDashboard.ts`, `tests/unit/dashboard.spec.ts`
 **規模:** M
 
-### Task 13: ダッシュボード — 月次推移グラフ
+### Task 13: ダッシュボード — 月次推移グラフ — 破棄
 
 **内容:** Chart.js（vue-chartjs）を導入し、月次推移グラフを実装：売上・費用の棒グラフ＋利益率の折れ線グラフの複合グラフ（7月〜翌6月の12ヶ月）。`<ClientOnly>` でラップ。A1によりドーナツグラフはないため、グラフ領域は全幅で表示。
 
 **受け入れ基準:**
 
-- [ ] 複合グラフ（棒2系列＋折れ線1系列）が12ヶ月分表示され、未入力月は破綻なく描画される
-- [ ] 年度切替でグラフが更新され、集計値がKPIカードと一致する
+- [x] 破棄（SPEC-MODIFY-1: 複合グラフは Task 20「ダッシュボード（俯瞰）」に統合）
+- [x] 破棄（SPEC-MODIFY-1: 年度切替は年度マスタ（Task 17）経由で実装）
 
 **検証:** dev環境で目視確認。
 **依存:** T12
 **触るファイル:** `components/dashboard/MonthlyTrendChart.vue`, `package.json`
 **規模:** S
 
-### Task 14: ダッシュボード — プロジェクト別月次マトリクス表
+### Task 14: ダッシュボード — プロジェクト別月次マトリクス表 — 破棄
 
 **内容:** プロジェクトごとに売上・費用・粗利・粗利率の4行×12ヶ月（7月〜翌6月）のマトリクス。未入力月は「-」。PJ別総合列（年間合計、粗利率は年間売上/粗利から算出）。単位は円固定（A4）。粗利・粗利率行はデザイン準拠の強調表示。A2によりPM名表示はなし。
 
 **受け入れ基準:**
 
-- [ ] 4行×12ヶ月＋総合列が全プロジェクト分表示され、未入力月は「-」
-- [ ] 総合列の合計・平均粗利率が正しい（Vitestで集計関数をテスト）
-- [ ] 横スクロールでレイアウトが崩れない
+- [x] 破棄（SPEC-MODIFY-1: マトリクスは Task 20「ダッシュボード（俯瞰）」に統合）
+- [x] 破棄（SPEC-MODIFY-1: 集計関数は Task 19.4 と Task 20 で再利用）
+- [x] 破棄（SPEC-MODIFY-1: 横スクロールは Task 20 で再検証）
 
 **検証:** シードデータの手計算値と照合。`npx vitest run` パス。
 **依存:** T12（T13と並行可）
 **触るファイル:** `components/dashboard/ProjectMatrix.vue`, `composables/useDashboard.ts`
 **規模:** M
 
-### ✅ チェックポイント4（全機能）
+### ✅ チェックポイント4（全機能）— 破棄
 
-- [ ] 全画面がシードデータで正しく動作し、数値の相互一致（入力↔一覧↔ダッシュボード）を確認
+- [x] 破棄（SPEC-MODIFY-1: チェックポイント4は Task 17-21・既存 Task 10/15/16 完了後に再設定）
+- [x] 破棄（SPEC-MODIFY-1: 人間レビューは Task 17-21 完了後）
+
+---
+
+## フェーズ5.5: 仕様変更v1（SPEC-MODIFY-1）
+
+> 詳細: `tasks/SPEC-MODIFY-1-PLAN.md` を参照。  
+> スコープ: ① 年度マスタ作成 ② 4階層ドリルダウン（プロジェクト→年度→月→実績閲覧）③ `work_hours` を `NUMERIC(6,2)` に変更。
+
+### Task 17: `m_fiscal_years` テーブル追加（年度マスタ）
+
+**内容:** `m_fiscal_years` テーブル（`id`, `year INT UNIQUE`, `label VARCHAR(50)`, `status VARCHAR(20) DEFAULT 'ACTIVE'`, `created_at`, `updated_at`）を新規マイグレーションで追加。`status` は `'ACTIVE'` / `'CLOSED'`。RLSは既存の `is_app_user()` を流用し、SELECT/INSERT/UPDATE/DELETE の4ポリシーを追加。シードは今年度±2年の5件（今年度を `ACTIVE`、その他を `CLOSED`）。composable `composables/useFiscalYears.ts` で全件取得 + リアクティブな `fiscalYears` を提供。`lib/schemas/fiscalYear.ts` で年度追加のバリデーション（数値・範囲・一意性）+ `tests/unit/schemas/fiscalYear.spec.ts` を新設。`pages/performance/input.vue` の `FISCAL_YEAR_RANGE` を `useFiscalYears()` の戻り値に置換。
+
+**受け入れ基準:**
+
+- [ ] `m_fiscal_years` テーブルが Supabase に作成され、RLSで未認証が0件になる
+- [ ] seed.sql で5件の年度（今年度±2年）が投入され、認証済みユーザーで SELECT できる
+- [ ] `pages/performance/input.vue` の年度プルダウンがマスタ由来になる
+- [ ] 存在しない年度を INSERT すると一意制約違反（23505）で拒否される
+
+**検証:** Supabase SQL Editor / REST で認証あり・なしのアクセス結果を確認。`npx vitest run` パス。`npm run build` 成功。
+**依存:** なし
+**触るファイル:** `supabase/migrations/<ts>_add_m_fiscal_years.sql`, `supabase/seed.sql`, `composables/useFiscalYears.ts`, `lib/schemas/fiscalYear.ts`, `tests/unit/schemas/fiscalYear.spec.ts`, `pages/performance/input.vue`, `types/database.types.ts`
+**規模:** S
+
+### Task 18: AppSidebar のリンク更新
+
+**内容:** 「プロジェクト一覧」の活性判定を `/projects` だけでなく動的セグメント（`/projects/[id]/years`, `/projects/[id]/years/[year]/months`, `/projects/[id]/years/[year]/months/[month]`）にも追従させる。`startsWith('/projects')` 系の判定で実装。リンクの文言は維持。
+
+**受け入れ基準:**
+
+- [ ] 4階層のすべての画面で「プロジェクト一覧」が活性表示される
+- [ ] `/projects/edit` でも「プロジェクト一覧」は活性のまま（既存挙動と一致）
+
+**検証:** dev環境で各パスを巡回し、サイドバーの活性状態を目視確認。
+**依存:** なし（Task 19.1 と並行可）
+**触るファイル:** `components/AppSidebar.vue`
+**規模:** S
+
+### Task 19: 4階層のルーティングと各画面
+
+#### Task 19.1: プロジェクト選択画面（`/projects`）
+
+**内容:** `m_projects` 全件をカードリスト表示（デザイン画像: `design/project-select.png`）。件数を画面上部に表示（例: 「全10件」）。右上「プロジェクト編集」ボタンで `/projects/edit` へ。カードクリック → `/projects/[id]/years` へ遷移。Reactivity: `onMounted` で取得、`pending`/`error` の2軸で状態管理（既存 `lib/fetchStatus.ts` パターンを踏襲）。
+
+**受け入れ基準:**
+
+- [ ] `m_projects` 全件がカードリストで表示され、件数も表示される
+- [ ] カードクリックで `/projects/[id]/years` に遷移する
+- [ ] 「プロジェクト編集」ボタンで `/projects/edit` に遷移する
+- [ ] 0件 / ローディング / エラー の3状態が破綻なく表示される
+
+**検証:** dev環境で `/projects` を開き、PJ 0件 / 1件 / 複数件で目視確認。
+**依存:** Task 17（年度マスタと並行可）
+**触るファイル:** `pages/projects/index.vue`, `composables/useProjectsList.ts`
+**規模:** S
+
+#### Task 19.2: 年度選択画面（`/projects/[id]/years`）
+
+**内容:** デザイン画像: `design/year-select.png`。`m_fiscal_years` 全件 + `t_sales`/`t_costs` を `project_id` で集計し、年度ごとの「年間売上」「年間粗利」を算出。3カラムグリッド。`getCurrentFiscalYear()` と一致する年度に「今年度」バッジを自動付与。ステータスラベル（`ACTIVE` → 「進行中」 / `CLOSED` → 「確定」）。「＋ 年度を追加」ボタンは `YearAddModal.vue` を開く（モーダル内で年度数値入力 + 「保存」/「キャンセル」ボタン）。保存: バリデーション（数値・範囲 1900-2999・一意性）後 `m_fiscal_years` に INSERT。成功: モーダル閉じて一覧再フェッチ。失敗: エラー表示。
+
+**受け入れ基準:**
+
+- [ ] 対象PJの年度カードが3カラムで表示される
+- [ ] 「今年度」バッジがシステム日付ベースで正しく付与される
+- [ ] 「＋ 年度を追加」でモーダルが開き、年度入力 → 保存で年度マスタに追加される
+- [ ] 既存年度と重複する数値は保存時にエラー表示される
+- [ ] 売上・粗利が負値の年度は `-¥X.XM` で赤字表示
+
+**検証:** dev環境でモーダル操作と年度追加を手動確認。`npx vitest run` パス。
+**依存:** Task 17, 19.1
+**触るファイル:** `pages/projects/[id]/years/index.vue`, `components/YearAddModal.vue`, `composables/useProjectYears.ts`, `tests/unit/useProjectYears.spec.ts`
+**規模:** M
+
+#### Task 19.3: 月選択画面（`/projects/[id]/years/[year]/months`）
+
+**内容:** デザイン画像: `design/month-select.png`。`FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。入力済み月（`t_sales` または `t_costs` にレコードあり）は青字、未入力月はグレーアウトしてクリック不可。「当月」バッジはシステム日付ベースで自動付与。クリック → `/projects/[id]/years/[year]/months/[month]` へ。
+
+**受け入れ基準:**
+
+- [ ] 12ヶ月分が4カラムで表示される（4×3グリッド）
+- [ ] 入力済み月はクリック可能、未入力月はグレーアウト
+- [ ] 「当月」バッジがシステム日付で正しく付与される
+- [ ] 売上・粗利が負値の月は `-¥X.XM` で赤字表示
+
+**検証:** dev環境で目視確認。空月（実績0件）と入力済み月の2パターンで確認。
+**依存:** Task 19.2
+**触るファイル:** `pages/projects/[id]/years/[year]/months/index.vue`, `composables/useProjectMonths.ts`
+**規模:** M
+
+#### Task 19.4: 実績閲覧画面（`/projects/[id]/years/[year]/months/[month]`）
+
+**内容:** デザイン画像: `design/performance-view.png`。上部サマリーカード（売上・費用・粗利（粗利率%））+ 詳細テーブル（7列: 大項目 / 小項目 / 稼働時間 / 稼働人日 / 単価 / 金額 / 小計）。`t_sales`/`t_costs` を売上/費用セクションに分けて表示。月ナビゲーション（`< 前月` / 当月 / `翌月 >`）ボタン。データ存在で活性化。`t_status.updated_at` + `t_status.updated_by` を「最終更新: YYYY/MM/DD HH:MM ユーザー名」形式で表示。**閲覧専用**。編集導線は「この月の実績を編集」ボタン → `/performance/input?year=${year}&month=${month}&project=${id}` 遷移。
+
+**受け入れ基準:**
+
+- [ ] サマリーカード3種（売上・費用・粗利）と粗利率%が正しく表示される
+- [ ] 詳細テーブルが売上/費用/粗利の3セクションで表示される
+- [ ] 月ナビゲーションの前月/翌月ボタンが前月/翌月のデータ存在で活性化する
+- [ ] 「最終更新」が `t_status.updated_at` と `updated_by` から表示される
+- [ ] 「この月の実績を編集」ボタンで `/performance/input?year=...&month=...&project=...` に遷移する
+- [ ] テーブルは読み取り専用（入力欄なし）
+
+**検証:** dev環境で目視確認。空月・入力済み月の2パターンで確認。
+**依存:** Task 19.3
+**触るファイル:** `pages/projects/[id]/years/[year]/months/[month].vue`, `composables/usePerformanceView.ts`, `components/Breadcrumbs.vue`
+**規模:** M
+
+### Task 20: ダッシュボード（俯瞰）
+
+**内容:** 営業成績をグラフとマトリクスで俯瞰。年度選択は Task 17 の年度マスタから。KPIサマリー（売上高合計・費用合計・営業利益合計・利益率）+ 前年同期比（%/pt）。月次推移グラフ（売上・費用の棒グラフ + 利益率の折れ線、Task 13 相当）。プロジェクト別月次マトリクス（4行 × 12ヶ月 × 全プロジェクト、Task 14 相当）。実績データ0件対応（`buildYoYComparison` の `null` 処理を活用）。
+
+**受け入れ基準:**
+
+- [ ] 年度切替でKPI・グラフ・マトリクスが再集計される
+- [ ] 前年同期比の%・pt表記と増減の色分けが正しい。前年度データがない場合「-」
+- [ ] プロジェクト別月次マトリクスが4行×12ヶ月で全プロジェクト分表示され、未入力月は「-」
+- [ ] 実績データ0件でもKPI・グラフが破綻なく描画される
+
+**検証:** シードデータで目視確認。集計関数はVitestで単体テスト追加。
+**依存:** Task 17, Task 19.4（同じ集計関数を再利用）
+**触るファイル:** `pages/dashboard.vue`, `composables/useDashboard.ts`, `components/dashboard/MonthlyTrendChart.vue`, `components/dashboard/ProjectMatrix.vue`, `tests/unit/dashboard.spec.ts`
+**規模:** M
+
+### Task 21: `work_hours` を NUMERIC(6,2) に変更
+
+**内容:** マイグレーション追加（`NUMERIC(6,1)` → `NUMERIC(6,2)`）。`lib/schemas/performance.ts` の `costRowSchema` を変更（上限を `9999.99` に下げ、小数第2位まで許容）。`pages/performance/input.vue` の `step="0.1"` → `step="0.01"`。テスト19件差し替え（`2.25` 許容 / `2.256` 拒否 / `0.01` 許容 / 上限 `9999.99` テスト / `10000` 拒否）。`lib/calc.ts` のコメントも `NUMERIC(6,2)` に合わせて更新。`docs/SPEC.md` 5.1 の DDL 記述も更新。
+
+**受け入れ基準:**
+
+- [ ] `t_costs.work_hours` が `NUMERIC(6,2)` になる
+- [ ] 0.25h（15分単位）が画面で入力でき、DB に保存される
+- [ ] `step="0.01"` で第3位以下は UI から入力不可
+- [ ] 既存のスキーマバリデーションテストがすべてパスする
+
+**検証:** マイグレーションを Supabase に適用し、`t_costs` に `0.25` / `2.25` を INSERT できることを確認。`npx vitest run` パス。`npm run build` 成功。
+**依存:** なし（Task 17 と並行可）
+**触るファイル:** `supabase/migrations/<ts>_alter_t_costs_work_hours_scale.sql`, `lib/schemas/performance.ts`, `tests/unit/schemas/performance.spec.ts`, `pages/performance/input.vue`, `lib/calc.ts`, `docs/SPEC.md`
+**規模:** S
+
+### ✅ チェックポイント5（仕様変更v1）
+
+- [ ] Task 17-21 すべて完了し、ビルド / テストが緑
+- [ ] 4階層のドリルダウンが端から端まで動く
+- [ ] 年度マスタと実績入力画面の年度プルダウンが連動する
+- [ ] 0.25h の稼働時間が DB に保存できる
 - [ ] ここで人間レビュー
 
 ---
@@ -750,15 +900,7 @@
 
 ---
 
-## 保留：スキーマ変更を伴う仕様変更（別途まとめて実施）
+## 廃止：旧保留セクション
 
-既存タスクのスコープ外だが、マイグレーションを1本立てて対応する予定のもの。
-**実績データがまだ0件のうちに済ませるほど移行が楽になる。**
-
-- **`t_costs.work_hours` を `NUMERIC(6,1)` → `NUMERIC(6,2)` にする**（T8/T9 で判明）。
-  現状は小数第1位までしか保持できず、画面もそれに合わせて第2位以下を弾いている。
-  0.25h（15分単位）で記録したいという要望があるため。変更時は
-  `lib/schemas/performance.ts` の `costRowSchema`（小数第1位の検証）と、
-  そのテスト（`tests/unit/schemas/performance.spec.ts`）も合わせて直すこと。
-  `work_days` は既に `NUMERIC(6,2)` なので、時間側だけの変更で桁が揃う
-- （他の仕様変更が出たらここに追記する）
+旧「保留：スキーマ変更を伴う仕様変更」は **Task 21（`work_hours` を NUMERIC(6,2) に変更）** として実装するため、本セクションは廃止。  
+追加のスキーマ変更は `tasks/SPEC-MODIFY-1-PLAN.md` または `tasks/task.md` のフェーズ5.5 に追記する。
