@@ -91,6 +91,34 @@ export const previousFiscalMonth = (
   return index === 0 ? null : getFiscalMonths(startMonth)[index - 1]
 }
 
+/** 年度と暦月の組。月を前後に動かすと年度も変わりうるので対で扱う。 */
+export type FiscalMonthRef = {
+  fiscalYear: number
+  month: number
+}
+
+/**
+ * 月を前後に1つ動かす。年度末月の翌月は翌年度の初月、年度初月の前月は前年度の末月。
+ *
+ * 年度をまたぐ点が previousFiscalMonth との違い。あちらは前月比較の判定用で、
+ * 年度初月に前月を持たせない仕様が求められるので統合しない。
+ *
+ * 暦月の加減算で書くと 12月→1月 の折り返しと年度境界が二重に絡むため、
+ * 年度内の序数に直してから動かす。
+ */
+export const shiftFiscalMonth = (
+  ref: FiscalMonthRef,
+  offset: 1 | -1,
+  startMonth: number = FISCAL_START_MONTH,
+): FiscalMonthRef => {
+  const months = getFiscalMonths(startMonth)
+  const index = fiscalMonthIndex(ref.month, startMonth) + offset
+
+  if (index < 0) return { fiscalYear: ref.fiscalYear - 1, month: months[11] }
+  if (index > 11) return { fiscalYear: ref.fiscalYear + 1, month: months[0] }
+  return { fiscalYear: ref.fiscalYear, month: months[index] }
+}
+
 /**
  * 年度内の月ごとの値。実績のある月だけを持ち、未入力の月はキー自体を持たない。
  *

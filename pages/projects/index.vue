@@ -48,7 +48,7 @@ onMounted(fetchProjects)
 
     <!-- 行全体がリンクなので table にしない（tr を a で包むのは不正なHTML）。 -->
     <div v-else class="space-y-2">
-      <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}/years`"
+      <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`"
         class="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40">
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold text-slate-900">{{ project.service_name }}</p>

@@ -743,7 +743,7 @@
 
 ### Task 18: AppSidebar のリンク更新
 
-**内容:** 「プロジェクト一覧」の活性判定を `/projects` だけでなく動的セグメント（`/projects/[id]/years`, `/projects/[id]/[year]/months`, `/projects/[id]/[year]/months/[month]`）にも追従させる。`startsWith('/projects')` 系の判定で実装。リンクの文言は維持。
+**内容:** 「プロジェクト一覧」の活性判定を `/projects` だけでなく動的セグメント（`/projects/[id]`, `/projects/[id]/[year]`, `/projects/[id]/[year]/[month]`）にも追従させる。`startsWith('/projects')` 系の判定で実装。リンクの文言は維持。
 
 **受け入れ基準:**
 
@@ -795,7 +795,7 @@
 >   効くことを固定した
 >
 > **★ 受け入れ基準1の実機確認は現時点では不可能。**
-> `pages/projects/[id]/years/...` が未実装（Task 19.1〜19.4）のため、
+> `pages/projects/[id]/...` が未実装（Task 19.1〜19.4）のため、
 > 4階層のうち3つは dev 環境で開いても 404 になる。**Task 19.4 完了後にまとめて
 > 目視確認すること。** ロジック自体は上記のテストで固定済みなので、そのときの
 > 確認は「テストが正しいことの追認」に相当する。
@@ -808,12 +808,12 @@
 
 #### Task 19.1: プロジェクト選択画面（`/projects`）
 
-**内容:** `m_projects` 全件をカードリスト表示（デザイン画像: `design/project-select.png`）。件数を画面上部に表示（例: 「全10件」）。右上「プロジェクト編集」ボタンで `/projects/edit` へ。カードクリック → `/projects/[id]/years` へ遷移。Reactivity: `onMounted` で取得、`pending`/`error` の2軸で状態管理（既存 `lib/fetchStatus.ts` パターンを踏襲）。
+**内容:** `m_projects` 全件をカードリスト表示（デザイン画像: `design/project-select.png`）。件数を画面上部に表示（例: 「全10件」）。右上「プロジェクト編集」ボタンで `/projects/edit` へ。カードクリック → `/projects/[id]` へ遷移。Reactivity: `onMounted` で取得、`pending`/`error` の2軸で状態管理（既存 `lib/fetchStatus.ts` パターンを踏襲）。
 
 **受け入れ基準:**
 
 - [x] `m_projects` 全件がカードリストで表示され、件数も表示される
-- [x] カードクリックで `/projects/[id]/years` に遷移する
+- [x] カードクリックで `/projects/[id]` に遷移する
 - [x] 「プロジェクト編集」ボタンで `/projects/edit` に遷移する
 - [x] 0件 / ローディング / エラー の3状態が破綻なく表示される
 
@@ -865,7 +865,7 @@
 > `color.white.solid`）。`outline` を「白背景＋枠線」と思い込むと必ず外す。
 > 実機で確認しないと、灰色と白の差はスクリーンショットの縮尺次第で見落とす。
 
-#### Task 19.2: 年度選択画面（`/projects/[id]/years`）
+#### Task 19.2: 年度選択画面（`/projects/[id]`）
 
 **内容:** デザイン画像: `design/year-select.png`。`m_fiscal_years` 全件 + `t_sales`/`t_costs` を `project_id` で集計し、年度ごとの「年間売上」「年間粗利」を算出。3カラムグリッド。`getCurrentFiscalYear()` と一致する年度に「今年度」バッジを自動付与。「＋ 年度を追加」ボタンは `YearAddModal.vue` を開く（モーダル内で年度数値入力 + 「保存」/「キャンセル」ボタン）。保存: バリデーション（数値・範囲 1900-2999・一意性）後 `m_fiscal_years` に INSERT。成功: モーダル閉じて一覧再フェッチ。失敗: エラー表示。
 
@@ -879,7 +879,7 @@
 
 **検証:** dev環境でモーダル操作と年度追加を手動確認。`npx vitest run` パス。
 **依存:** Task 17, 19.1
-**触るファイル:** `pages/projects/[id]/years/index.vue`, `components/YearAddModal.vue`, `composables/useProjectYears.ts`
+**触るファイル:** `pages/projects/[id]/index.vue`, `components/YearAddModal.vue`, `composables/useProjectYears.ts`
 **規模:** M
 
 > **検証結果:** テスト172件が全件パス（`lib/` を触らないため増減なし）。
@@ -928,9 +928,9 @@
 > - **パンくずはプロジェクト名を引けないとき項目ごと省く。** `'...'` を
 >   置くと、存在しない ID の画面でその表示が固定されたまま残る
 
-#### Task 19.3: 月選択画面（`/projects/[id]/[year]/months`）
+#### Task 19.3: 月選択画面（`/projects/[id]/[year]`）
 
-**内容:** デザイン画像: `design/month-select.png`。`FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。未入力月は「未入力」と表示する（クリックは可能。下記注記）。「当月」バッジはシステム日付ベースで自動付与。クリック → `/projects/[id]/[year]/months/[month]` へ。
+**内容:** デザイン画像: `design/month-select.png`。`FISCAL_MONTHS`（7月始まり12ヶ月）を4カラムで表示。各月の「売上」「粗利」を `t_sales`/`t_costs` の集計で算出。未入力月は「未入力」と表示する（クリックは可能。下記注記）。「当月」バッジはシステム日付ベースで自動付与。クリック → `/projects/[id]/[year]/[month]` へ。
 
 **受け入れ基準:**
 
@@ -941,7 +941,7 @@
 
 **検証:** dev環境で目視確認。空月（実績0件）と入力済み月の2パターンで確認。
 **依存:** Task 19.2
-**触るファイル:** `pages/projects/[id]/[year]/months/index.vue`, `composables/useProjectMonths.ts`
+**触るファイル:** `pages/projects/[id]/[year]/index.vue`, `composables/useProjectMonths.ts`
 **規模:** M
 
 > **検証結果:** テスト172件が全件パス（`lib/` を触らないため増減なし）。
@@ -953,7 +953,7 @@
 > 当初の `/projects/{id}/years/{year}/months` は `years` が2回出て冗長なため、
 > **`/projects/{id}/{year}/months`** に変更した（月選択・実績閲覧の両方）。
 > **年度選択画面は `/projects/{id}/years` のまま**。
-> ルートは `pages/projects/[id]/[year]/months/` に移した。
+> ルートは `pages/projects/[id]/[year]/` に移した。
 > `[year]` が `years` にもマッチしうる形になるが、月選択は `months` まで
 > 一致を要求するので `/projects/{id}/years` が誤って月選択に入ることはない。
 > `/projects/edit` も、Nuxt が静的セグメントを動的セグメントより優先するため
@@ -990,23 +990,94 @@
 > - **集計は既存の `sumAmount` / `calcGrossProfit` を呼ぶだけ**なので、
 >   Task 19.2 と同じ理由で composable のテストは作っていない
 
-#### Task 19.4: 実績閲覧画面（`/projects/[id]/[year]/months/[month]`）
+#### Task 19.4: 実績閲覧画面（`/projects/[id]/[year]/[month]`）
 
 **内容:** デザイン画像: `design/performance-view.png`。上部サマリーカード（売上・費用・粗利（粗利率%））+ 詳細テーブル（7列: 大項目 / 小項目 / 稼働時間 / 稼働人日 / 単価 / 金額 / 小計）。`t_sales`/`t_costs` を売上/費用セクションに分けて表示。月ナビゲーション（`< 前月` / 当月 / `翌月 >`）ボタン。データ存在で活性化。`t_status.updated_at` + `t_status.updated_by` を「最終更新: YYYY/MM/DD HH:MM ユーザー名」形式で表示。**閲覧専用**。編集導線は「この月の実績を編集」ボタン → `/performance/input?year=${year}&month=${month}&project=${id}` 遷移。
 
 **受け入れ基準:**
 
-- [ ] サマリーカード3種（売上・費用・粗利）と粗利率%が正しく表示される
-- [ ] 詳細テーブルが売上/費用/粗利の3セクションで表示される
-- [ ] 月ナビゲーションの前月/翌月ボタンが前月/翌月のデータ存在で活性化する
-- [ ] 「最終更新」が `t_status.updated_at` と `updated_by` から表示される
-- [ ] 「この月の実績を編集」ボタンで `/performance/input?year=...&month=...&project=...` に遷移する
-- [ ] テーブルは読み取り専用（入力欄なし）
+- [x] サマリーカード3種（売上・費用・粗利）と粗利率%が正しく表示される
+- [x] 詳細テーブルが売上/費用/粗利の3セクションで表示される
+- [x] 月ナビゲーションの前月/翌月ボタンが前月/翌月のデータ存在で活性化する
+- [x] 「最終更新」が `t_status.updated_at` と `updated_by` から表示される
+- [x] 「この月の実績を編集」ボタンで `/performance/input?year=...&month=...&project=...` に遷移する
+- [x] テーブルは読み取り専用（入力欄なし）
 
 **検証:** dev環境で目視確認。空月・入力済み月の2パターンで確認。
 **依存:** Task 19.3
-**触るファイル:** `pages/projects/[id]/[year]/months/[month].vue`, `composables/usePerformanceView.ts`, `components/Breadcrumbs.vue`
+**触るファイル:** `pages/projects/[id]/[year]/[month].vue`, `lib/fiscalYear.ts`, `tests/unit/fiscalYear.spec.ts`
 **規模:** M
+
+> **検証結果:** テスト179件が全件パス（T19.3 までの172件 + 本タスクの7件）。
+> `lib/` のカバレッジは **Stmts・Branch・Funcs・Lines すべて100%** を維持。
+> `make build`（`typeCheck: true`）成功。
+>
+> **★ 実データで全基準を確認済み。** 保存処理（Task 10）が未実装で画面から
+> 実績を入れられないため、`supabase/seed/*.csv` を用意して管理画面から取り込んだ
+> （2023年度1月・プロジェクトID 1）。`/projects/1/2023/1` で次を確認した。
+>
+> | 項目 | 表示 |
+> | --- | --- |
+> | 売上 | ¥3,000,000 |
+> | 費用 | ¥2,025,000（人件費 ¥1,905,000 + 管理費 ¥120,000） |
+> | 粗利 | ¥975,000（32.5%） |
+> | 最終更新 | 2026/08/10 23:47 冨永 隼人 |
+>
+> 明細も丸め規則どおり（120.0h→15人日→¥900,000、2.0h→0.25人日→¥15,000）。
+> 稼働0のメンバーがグレーで並び、備考行も出る。
+>
+> **★ `db push --include-seed` では実績データを流せなかった。**
+> 未適用のマイグレーションがあるときだけ `seed.sql` を実行する仕組みで、
+> スキーマが最新だとハッシュだけ更新して SQL は走らない。
+> 実績データはスキーマ変更を伴わないため、**CSV を管理画面から取り込む方式にした**
+> （`supabase/seed/README.md` に手順と再取り込み時の DELETE 文を記載）。
+> `t_sales`/`t_costs` は UNIQUE 制約がなく、再取り込みすると重複する点に注意。
+>
+> **★ URL からドリルダウンの階層語を全廃した**（ユーザー指示）。
+>
+> | 画面 | URL |
+> | --- | --- |
+> | プロジェクト選択 | `/projects` |
+> | 年度選択 | `/projects/{id}` |
+> | 月選択 | `/projects/{id}/{year}` |
+> | 実績閲覧 | `/projects/{id}/{year}/{month}` |
+>
+> **`/projects/edit` と `/projects/[id]` が同じ位置に並ぶ**が、Nuxt は静的
+> セグメントを動的セグメントより優先するため編集画面のまま。4つのURLすべてを
+> 実機で開いて共存を確認済み。サイドバーの活性判定は `/projects` の前方一致
+> なので影響を受けない。
+>
+> **★ `usePerformanceView.ts` は作らなかった**（「触るファイル」から外した）。
+> 既存 `usePerformance` の `fetchPerformance` が3テーブルの並列取得・
+> 単価の優先順位（実績値 > マスタ値）・管理費の合算をすでに正しく処理しており、
+> 閲覧でもロジックは同じ。デザインも稼働0のメンバーをグレーで表示しているので、
+> 「全メンバー分の行を作る」構造も噛み合う。
+>
+> **★ ただし空月の初期2行だけは閲覧で出さない。** `fetchPerformance` は
+> 実績0件のとき「保守」「保守外（追加開発）」の2行を作る（入力用の仕様）。
+> そのまま出すと存在しない売上が `¥0` で2行見えるので、
+> `useProjectMonths` の `hasRecords` で実績の有無を見て空状態に振り分けた。
+>
+> **★ `lib/fiscalYear.ts` に `shiftFiscalMonth` を足した。**
+> 月ナビは年度をまたぐ（7月の前月＝前年度6月、6月の翌月＝翌年度7月）が、
+> 既存の `previousFiscalMonth` は年度初月で `null` を返す。
+> あちらは前月比較の判定用でその仕様が正しいので**統合せず別関数にした**。
+> 暦月の加減算で書くと 12月→1月 の折り返しと年度境界が二重に絡むため、
+> 年度内の序数に直してから動かしている。
+> 実機で 2026年度7月の前月が「6月」と出ることを確認済み。
+>
+> **設計上の判断:**
+>
+> - **年度をまたぐときだけ隣接年度へ問い合わせる。** 同一年度内は
+>   `useProjectMonths` の `summaries` から引ける。年度端の2ケースのみ
+>   その1ヶ月を `head: true, count: 'exact'` で存在確認する
+>   （`useProjects.ts` の `hasPerformanceRecords` と同じやり方）
+> - **`hasRecords` は `t_sales`/`t_costs` しか見ない。** 備考だけの月は
+>   「未入力」扱いになるが、月選択画面と同じ基準なので画面間で矛盾しない
+> - **粗利率は `toFixed(1)`。** `lib/format.ts` に率の書式関数はなく、
+>   実績入力画面が同じ書き方をしているので揃えた
+> - **稼働0のメンバーも行として残す**（グレー表示）。誰が動いていないかが
+>   分かるほうが閲覧の役に立つ。デザイン画像もそうなっている
 
 ### Task 20: ダッシュボード（俯瞰）
 
@@ -1042,11 +1113,19 @@
 
 ### ✅ チェックポイント5（仕様変更v1）
 
-- [ ] Task 17-21 すべて完了し、ビルド / テストが緑
-- [ ] 4階層のドリルダウンが端から端まで動く
-- [ ] 年度マスタと実績入力画面の年度プルダウンが連動する
-- [ ] 0.25h の稼働時間が DB に保存できる
+- [ ] Task 17-21 すべて完了し、ビルド / テストが緑（**Task 20・21 が未着手**）
+- [x] 4階層のドリルダウンが端から端まで動く（`/projects` → `{id}` → `{year}` → `{month}`）
+- [x] 年度マスタと実績入力画面の年度プルダウンが連動する（Task 17 で確認済み）
+- [ ] 0.25h の稼働時間が DB に保存できる（Task 21）
 - [ ] ここで人間レビュー
+
+> **★ 3画面の数値表示は実データで確認済み。** `supabase/seed/*.csv`
+> （2023年度1月・PJ 1）を取り込み、年度カード（19.2）・月カード（19.3）・
+> 実績閲覧（19.4）のいずれにも ¥3,000,000 / ¥975,000 が正しく集計されることを
+> 目視した。入力済みと未入力の出し分けも意図どおり。
+>
+> **保存処理（Task 10）は未実装のまま。** 画面から実績を登録・更新できないので、
+> 別の月やプロジェクトで確認したいときは CSV を足すか Task 10 を先に進めること。
 
 ---
 

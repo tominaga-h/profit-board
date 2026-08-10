@@ -47,8 +47,8 @@ onMounted(async () => {
     <!-- 引けなかったプロジェクト名は項目ごと省く。'...' のまま固定されるのを避ける。 -->
     <Breadcrumbs :items="[
       { label: 'プロジェクト一覧', to: '/projects' },
-      ...(project ? [{ label: project.service_name, to: `/projects/${projectId}/years` }] : []),
-      ...(fiscalYear !== null ? [{ label: `${fiscalYear}年度`, to: `/projects/${projectId}/years` }] : []),
+      ...(project ? [{ label: project.service_name, to: `/projects/${projectId}` }] : []),
+      ...(fiscalYear !== null ? [{ label: `${fiscalYear}年度`, to: `/projects/${projectId}` }] : []),
       { label: '月を選択' },
     ]" />
 
@@ -75,7 +75,7 @@ onMounted(async () => {
     <!-- 0件の枝は要らない。月は常に12枚出る。 -->
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <NuxtLink v-for="summary in summaries" :key="summary.month"
-        :to="`/projects/${projectId}/${fiscalYear}/months/${summary.month}`"
+        :to="`/projects/${projectId}/${fiscalYear}/${summary.month}`"
         class="rounded-xl border px-5 py-4 transition-colors" :class="isCurrentMonth(summary)
           ? 'bg-blue-50  border-blue-500 ring-blue-100'
           : !summary.hasRecords

@@ -2,7 +2,6 @@
 -- ProfitBoard シードデータ
 --
 -- 初期管理者（SPEC 7章）1名のみを登録する。
--- 動作確認用のダミープロジェクト・実績データは意図的に作らない。
 --
 -- 【重要】このファイルは `supabase db push` の既定では適用されない。
 --         リモートへ流すには `supabase db push --include-seed` を明示すること。
@@ -17,3 +16,7 @@
 INSERT INTO public.m_users (family_name, first_name, email, unit_price)
 VALUES ('冨永', '隼人', 'tominaga_h@mad2007.co.jp', 60000)
 ON CONFLICT (email) DO NOTHING;
+
+-- 動作確認用の実績データは supabase/seed/*.csv に置き、管理画面から取り込む。
+-- db push --include-seed は未適用のマイグレーションがあるときだけこのファイルを
+-- 流すため、スキーマが最新だと実行されない。
