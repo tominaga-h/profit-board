@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isNavItemActive } from '~/lib/navActive'
+
 type NavItem = {
   label: string
   /** undefined の項目は非活性（リンクにしない） */
@@ -18,16 +20,8 @@ const navItems: NavItem[] = [
 
 const route = useRoute()
 
-/**
- * 前方一致で判定する。編集画面は一覧の配下という位置づけなので、
- * /projects/edit では「プロジェクト一覧」が、/members/edit では「メンバー」が光る。
- * NuxtLink の active-class（部分一致）や exact-active-class では
- * この挙動を意図どおりに揃えられない。
- */
-const isActive = (to?: string) => {
-  if (!to) return false
-  return route.path === to || route.path.startsWith(`${to}/`)
-}
+/** 判定の実体と、前方一致にしている理由は lib/navActive.ts を参照。 */
+const isActive = (to?: string) => isNavItemActive(route.path, to)
 
 // plan.md A1 により部門は表示しない。キャプションにはメールを出す。
 const { appUser, displayName, authEmail, signOut } = useAppUser()
