@@ -80,6 +80,13 @@ const selectedProjectName = computed(
     null,
 )
 
+/** 閲覧画面への戻り先。選択が揃うまでは行き先が定まらない。 */
+const viewHref = computed(() =>
+  isReady.value
+    ? `/projects/${selectedProject.value}/${selectedYear.value}/${selectedMonth.value}`
+    : null,
+)
+
 /** 行の検証エラー。キーは draft.key。 */
 const salesErrors = ref<Map<string, SalesRowErrors>>(new Map())
 const costErrors = ref<Map<string, CostRowErrors>>(new Map())
@@ -341,6 +348,11 @@ const lastUpdated = computed(() => {
 
     <PageHeader title="売上・費用実績入力" subtitle="プロジェクト×年月の実績を入力します">
       <template #actions>
+        <!-- 未保存の変更は破棄される。保存の左に置いて、先に保存する導線を自然にする。 -->
+        <UButton v-if="viewHref" :to="viewHref" icon="i-lucide-eye" color="white" class="py-2.5 px-4">
+          閲覧画面に戻る
+        </UButton>
+
         <UButton icon="i-lucide-check" class="py-2.5 px-4" :loading="isSaving"
           :disabled="!isReady || isSaving" @click="handleSave">
           保存する
