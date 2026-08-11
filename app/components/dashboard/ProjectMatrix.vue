@@ -147,14 +147,19 @@ const isNegative = (row: MatrixRow, metric: MetricKey): boolean =>
               <td
                 v-for="column in columns"
                 :key="column.month"
-                class="whitespace-nowrap px-4 py-2 text-right text-xs tabular-nums"
-                :class="
-                  metric.key === 'profit' || metric.key === 'rate'
-                    ? 'font-semibold text-blue-700'
-                    : 'text-slate-600'
-                "
+                class="whitespace-nowrap text-right text-xs tabular-nums"
               >
-                {{ formatCell(row, column.month, metric.key) }}
+                <NuxtLink
+                  :to="`/projects/${row.projectId}/${fiscalYear}/${column.month}`"
+                  class="block px-4 py-2 transition-colors hover:bg-blue-50"
+                  :class="
+                    metric.key === 'profit' || metric.key === 'rate'
+                      ? 'font-semibold text-blue-700'
+                      : 'text-slate-600'
+                  "
+                >
+                  {{ formatCell(row, column.month, metric.key) }}
+                </NuxtLink>
               </td>
             </tr>
           </template>
