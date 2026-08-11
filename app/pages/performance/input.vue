@@ -383,7 +383,7 @@ const lastUpdated = computed(() => {
               class="w-72" />
           </div>
 
-          <UBadge v-if="isReady && unfilledCount > 0" color="amber" size="sm" variant="subtle"
+          <UBadge v-if="isReady && unfilledCount > 0" color="amber" size="sm" variant="soft"
             class="mt-2 py-2 px-3 shrink-0">
             <UIcon name="i-lucide-triangle-alert" class="mr-1 h-3.5 w-3.5" />
             未入力 {{ unfilledCount }} 名
