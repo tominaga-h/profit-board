@@ -47,7 +47,7 @@ onMounted(async () => {
     <!-- 引けなかったプロジェクト名は項目ごと省く。'...' のまま固定されるのを避ける。 -->
     <Breadcrumbs :items="[
       { label: 'プロジェクト一覧', to: '/projects' },
-      ...(project ? [{ label: project.service_name, to: `/projects/${projectId}` }] : []),
+      ...(project ? [{ label: `${project.service_name}（${project.company_name}）`, to: `/projects/${projectId}` }] : []),
       ...(fiscalYear !== null ? [{ label: `${fiscalYear}年度`, to: `/projects/${projectId}` }] : []),
       { label: '月を選択' },
     ]" />

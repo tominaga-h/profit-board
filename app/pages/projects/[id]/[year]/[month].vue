@@ -124,7 +124,7 @@ watch(() => route.params.month, load)
   <div>
     <Breadcrumbs :items="[
       { label: 'プロジェクト一覧', to: '/projects' },
-      ...(project ? [{ label: project.service_name, to: `/projects/${projectId}` }] : []),
+      ...(project ? [{ label: `${project.service_name}（${project.company_name}）`, to: `/projects/${projectId}` }] : []),
       ...(fiscalYear !== null ? [{ label: `${fiscalYear}年度`, to: `/projects/${projectId}/${fiscalYear}` }] : []),
       { label: `${month}月実績` },
     ]" />

@@ -63,7 +63,7 @@ onMounted(async () => {
     <!-- 引けなかったプロジェクト名は項目ごと省く。'...' のまま固定されるのを避ける。 -->
     <Breadcrumbs :items="[
       { label: 'プロジェクト一覧', to: '/projects' },
-      ...(project ? [{ label: project.service_name }] : []),
+      ...(project ? [{ label: `${project.service_name}（${project.company_name}）` }] : []),
       { label: '年度を選択' },
     ]" />
 
@@ -102,8 +102,7 @@ onMounted(async () => {
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <NuxtLink v-for="summary in summaries" :key="summary.year"
-        :to="`/projects/${projectId}/${summary.year}`"
+      <NuxtLink v-for="summary in summaries" :key="summary.year" :to="`/projects/${projectId}/${summary.year}`"
         class="rounded-xl border px-5 py-4 transition-colors" :class="isSameYear(summary)
           ? 'bg-blue-50  border-blue-500 ring-blue-100'
           : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50'
