@@ -279,14 +279,30 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] 追加のみ / 更新のみ / 削除のみ / 混在 / 変更なし（UPDATE 対象ゼロ）の各ケースのテストがあり、すべて通る
-- [ ] sales・costs 両系統の行差分と managementAmount / remark（t_status）の扱いがテストで仕様化されている
-- [ ] 純関数は DB・Nuxt ランタイムに依存しない
+- [x] 追加のみ / 更新のみ / 削除のみ / 混在 / 変更なし（UPDATE 対象ゼロ）の各ケースのテストがあり、すべて通る
+- [x] sales・costs 両系統の行差分と managementAmount / remark（t_status）の扱いがテストで仕様化されている
+- [x] 純関数は DB・Nuxt ランタイムに依存しない
 
 **検証:** `make test` で新規 spec が通過。
 **依存:** Task 3（schema.ts の型を入出力に使う場合）。Task 5〜7 と並行可
 **触るファイル:** `server/utils/performanceDiff.ts`（新規）, `tests/unit/performanceDiff.spec.ts`（新規）
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・検収済み）:**
+>
+> - TDD の証跡: spec を先に書いて `Cannot find module` の赤を確認 → 実装 → 23 件全通過
+>   （テスト合計 241 件）
+> - `diffPerformance(current, desired, scope)` → `{ sales, costs, status }`。内部は
+>   diffSales / diffLaborCosts / diffManagement の3系統（現行 savePerformance の構造を踏襲）で、
+>   costs は最終的に1配列へマージ。呼び出し側は DELETE → UPDATE → INSERT → status upsert の順で実行
+> - 現行仕様の重要な発見: **managementAmount は t_costs の `user_id IS NULL` 行**として保存。
+>   UNIQUE 制約がなく複数行できてしまうため `duplicatedManagementIds`（先頭以外の行 id）を
+>   常に DELETE して1行へ正規化する。稼働0の既存行は DELETE、新規行はスキップ。
+>   管理費0円は行ごと削除。t_status は毎回無条件 upsert（remark 空文字はクリア操作）
+> - `CostUpdatePayload` は union（稼働行はフル項目、管理費行は amount のみ。現行の非対称を保持）
+> - **検収時修正**: lib/calc.ts の roundTo / calcWorkDays / calcLaborCost の複製を
+>   `~/lib/calc` からの import に置換（lib/ は Nuxt 非依存で Nitro からも import 可能。
+>   複製は丸めルール変更時の drift リスクになる）。修正後もテスト・typecheck 全通過
 
 ### Task 9: performance の移行（最重要トランザクション）
 
