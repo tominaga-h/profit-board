@@ -13,28 +13,20 @@ export type FiscalYear = Pick<
  * 他の composable と違い onMounted を内部に持つので、呼び出し側は fetch を呼ばなくてよい。
  */
 export const useFiscalYears = () => {
-  const supabase = useSupabaseClient<Database>()
-
   const fiscalYears = ref<FiscalYear[]>([])
   const status = ref<FetchStatus>(FetchStatus.IDLE)
 
   const refetch = async (): Promise<void> => {
     status.value = FetchStatus.LOADING
 
-    const { data, error } = await supabase
-      .from('m_fiscal_years')
-      .select('id, year')
-      .order('year', { ascending: false })
-
-    if (error) {
+    try {
+      fiscalYears.value = await $fetch<FiscalYear[]>('/api/fiscal-years')
+      status.value = FetchStatus.SUCCESS
+    } catch (error) {
       console.error('[useFiscalYears] m_fiscal_years の取得に失敗しました', error)
       fiscalYears.value = []
       status.value = FetchStatus.ERROR
-      return
     }
-
-    fiscalYears.value = data ?? []
-    status.value = FetchStatus.SUCCESS
   }
 
   onMounted(() => {

@@ -1,6 +1,7 @@
-import type { Database } from '~/types/database.types'
+import type { FetchError } from 'ofetch'
 import { FetchStatus } from '~/lib/fetchStatus'
-import { calcGrossProfit, sumAmount } from '~/lib/calc'
+import { calcGrossProfit } from '~/lib/calc'
+import { PG_ERROR_CODE } from '~/lib/pgErrorCodes'
 
 /** 年度カード1枚分。年度マスタの行に、その年度の実績集計を添えたもの。 */
 export type ProjectYearSummary = {
@@ -12,15 +13,20 @@ export type ProjectYearSummary = {
 /** 年度追加の結果。失敗理由を画面に出し分けるため、真偽値ではなくメッセージを返す。 */
 export type AddYearResult = { ok: true } | { ok: false; message: string }
 
+/** /api/projects/[id]/years が返す集計素材（年度で SUM 済みの行）。 */
+type ProjectYearsSourceResponse = {
+  years: { year: number }[]
+  sales: { fiscal_year: number; amount: number }[]
+  costs: { fiscal_year: number; amount: number }[]
+}
+
 /**
  * 対象プロジェクトの年度一覧と、年度ごとの年間売上・年間粗利。
  *
- * 年度ごとにクエリを投げず、project_id だけで全年度分を取ってから畳む。
- * 年度 N 件で 2N 回の往復になるのを避けるため。
+ * /api/projects/[id]/years（server/api/projects/[id]/years.get.ts）が SQL の
+ * GROUP BY で年度単位の SUM 済み行まで絞り、畳み込みはここで行う。
  */
 export const useProjectYears = (projectId: number) => {
-  const supabase = useSupabaseClient<Database>()
-
   const summaries = ref<ProjectYearSummary[]>([])
   const status = ref<FetchStatus>(FetchStatus.IDLE)
   const errorMessage = ref<string | null>(null)
@@ -29,41 +35,30 @@ export const useProjectYears = (projectId: number) => {
     status.value = FetchStatus.LOADING
     errorMessage.value = null
 
-    const [yearsResult, salesResult, costsResult] = await Promise.all([
-      supabase.from('m_fiscal_years').select('year').order('year', { ascending: false }),
-      supabase.from('t_sales').select('fiscal_year, amount').eq('project_id', projectId),
-      supabase.from('t_costs').select('fiscal_year, amount').eq('project_id', projectId),
-    ])
+    try {
+      const source = await $fetch<ProjectYearsSourceResponse>(
+        `/api/projects/${projectId}/years`,
+      )
 
-    const failed = yearsResult.error ?? salesResult.error ?? costsResult.error
-    if (failed) {
-      console.error('[useProjectYears] 年度情報の取得に失敗しました', failed)
+      const salesByYear = new Map(source.sales.map((row) => [row.fiscal_year, row.amount]))
+      const costsByYear = new Map(source.costs.map((row) => [row.fiscal_year, row.amount]))
+
+      summaries.value = source.years
+        .map(({ year }) => {
+          const totalSales = salesByYear.get(year) ?? 0
+          const totalCosts = costsByYear.get(year) ?? 0
+          return { year, totalSales, grossProfit: calcGrossProfit(totalSales, totalCosts) }
+        })
+        // 年度マスタは昇順で届く。カード表示は新しい年度から並べる。
+        .sort((a, b) => b.year - a.year)
+
+      status.value = FetchStatus.SUCCESS
+    } catch (error) {
+      console.error('[useProjectYears] 年度情報の取得に失敗しました', error)
       summaries.value = []
       errorMessage.value = '年度情報を取得できませんでした。時間をおいて再度お試しください。'
       status.value = FetchStatus.ERROR
-      return
     }
-
-    const groupByYear = (rows: { fiscal_year: number; amount: number }[]) => {
-      const byYear = new Map<number, { amount: number }[]>()
-      for (const row of rows) {
-        const bucket = byYear.get(row.fiscal_year)
-        if (bucket) bucket.push(row)
-        else byYear.set(row.fiscal_year, [row])
-      }
-      return byYear
-    }
-
-    const salesByYear = groupByYear(salesResult.data ?? [])
-    const costsByYear = groupByYear(costsResult.data ?? [])
-
-    summaries.value = (yearsResult.data ?? []).map(({ year }) => {
-      const totalSales = sumAmount(salesByYear.get(year) ?? [])
-      const totalCosts = sumAmount(costsByYear.get(year) ?? [])
-      return { year, totalSales, grossProfit: calcGrossProfit(totalSales, totalCosts) }
-    })
-
-    status.value = FetchStatus.SUCCESS
   }
 
   const isAdding = ref(false)
@@ -78,21 +73,23 @@ export const useProjectYears = (projectId: number) => {
     isAdding.value = true
 
     try {
-      const { error } = await supabase.from('m_fiscal_years').insert({ year })
-
-      if (error) {
-        console.error('[useProjectYears] 年度の追加に失敗しました', error)
-        return {
-          ok: false,
-          message:
-            error.code === '23505'
-              ? `${year}年度は既に登録されています。`
-              : '年度の追加に失敗しました。',
-        }
-      }
+      await $fetch('/api/fiscal-years', { method: 'POST', body: { year } })
 
       await fetchYears()
       return { ok: true }
+    } catch (error) {
+      console.error('[useProjectYears] 年度の追加に失敗しました', error)
+      // h3 の createError({ data }) は sendError で { data: { pgCode } } として
+      // レスポンスに載る。ofetch の FetchError.data はそのレスポンス本体を指すため、
+      // pgCode は error.data.data に入る（実挙動で確認済み）。
+      const pgCode = (error as FetchError)?.data?.data?.pgCode
+      return {
+        ok: false,
+        message:
+          pgCode === PG_ERROR_CODE.UNIQUE_VIOLATION
+            ? `${year}年度は既に登録されています。`
+            : '年度の追加に失敗しました。',
+      }
     } finally {
       isAdding.value = false
     }

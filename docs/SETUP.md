@@ -2,8 +2,6 @@
 
 このドキュメントは、ProfitBoard の開発環境を新規に構築するための手順書である。
 
-> 補足: Vercel へのデプロイ（8章）は Task 16 で追記する。
-
 ---
 
 ## 1. 前提
@@ -343,8 +341,56 @@ make db-types
 
 ## 8. Vercel へのデプロイ
 
-> **TODO: Task 16 で記述する（SPEC 7章）。**
-> GitHub 連携、環境変数（`SUPABASE_URL` / `SUPABASE_KEY`）の設定手順を書く。
+ProfitBoard は DB 操作を `server/api/**`（Nitro API ルート + Drizzle）で行う。
+そのため、静的サイトではなく **serverless 関数を含むビルド**をデプロイする必要がある。
+
+### 8.1 ビルドコマンド
+
+Vercel 上でのビルドコマンドは `nuxt build`（`make build` が実行する `npm run build` と同じ）を使う。
+Vercel 環境では `VERCEL` 環境変数が自動的にセットされ、Nitro が Vercel 向けの preset を自動選択する。
+`ssr: false`（SPA モード）のままでも、出力は「SPA シェルの静的配信 + serverless API」の
+`.output` になり、`server/api/**` は serverless 関数としてデプロイされる。
+
+> **`nuxt generate` は使用禁止。**
+> `nuxt generate` は静的サイト生成であり、`server/api/**` の Nitro API ルートが
+> 出力に一切含まれない。これでデプロイすると、ログインを含む全 API エンドポイントが
+> 404 になりアプリが一切動作しない。このため `make generate` ターゲットと
+> `package.json` の `generate` スクリプトは削除済み。ビルドには必ず `make build`（`nuxt build`）を使うこと。
+
+### 8.2 GitHub 連携
+
+Vercel ダッシュボードで「Add New... > Project」からこのリポジトリを選択し、GitHub 連携でインポートする。
+フレームワークプリセットは Nuxt.js が自動検出される。ビルドコマンド・出力ディレクトリは
+Nuxt のデフォルト設定のままでよい（上書きしない）。
+
+### 8.3 環境変数
+
+Vercel プロジェクトの Settings > Environment Variables に以下を設定する。
+
+| 変数 | 用途 | 値の入手元 |
+| --- | --- | --- |
+| `SUPABASE_URL` | Auth（Google OAuth）用。継続使用 | Supabase ダッシュボード Settings > API > Project URL |
+| `SUPABASE_KEY` | Auth 用の Anon Key。継続使用 | Supabase ダッシュボード Settings > API > anon public |
+| `NUXT_DATABASE_URL` | Drizzle のランタイム接続文字列（**新設・必須**） | Supabase ダッシュボード Connect > **Transaction pooler**（port 6543） |
+
+`NUXT_DATABASE_URL` は `.env.example` と同じ形式（Supavisor transaction mode、host は
+`aws-0-ap-southeast-1.pooler.supabase.com`）。ダッシュボードの Connect 画面に表示される
+接続文字列をそのまま**コピーして**貼り付けること（手打ちしない）。パスワードに `@` などの
+記号が含まれる場合は URL エンコードが必要（ダッシュボードがエンコード済みの文字列を出すので、
+基本的にはそのまま使えば問題ない）。
+
+> **設定してはいけない変数**
+>
+> | 変数 | 理由 |
+> | --- | --- |
+> | `SUPABASE_SERVICE_ROLE_KEY` | RLS を完全にバイパスする鍵。2章のとおりローカルの管理作業専用であり、Vercel には設定しない |
+> | `DIRECT_DATABASE_URL` | `drizzle-kit pull` 専用の接続文字列（session mode、port 5432）。ローカル専用でランタイムには不要 |
+
+### 8.4 デプロイ後の確認
+
+- ログイン（Google OAuth）が通ること。7.3 の Redirect URLs に Vercel の本番 URL（`https://<project>.vercel.app/**`）を追加していないと `/confirm` で止まるので注意
+- ダッシュボードなど DB を伴う画面が表示できること（`NUXT_DATABASE_URL` が未設定だと API が 500 になる）
+- Vercel のデプロイログで Functions（serverless）として `server/api/**` がビルドされていることを確認する
 
 ---
 

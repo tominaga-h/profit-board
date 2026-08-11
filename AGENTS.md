@@ -21,7 +21,6 @@
 - install        依存をインストールする（package.json 変更時）
 - ci             package-lock.json どおりに依存をクリーンインストールする
 - build          本番ビルドする（Nitro サーバ向け）
-- generate       静的サイトを生成する（.output/public へ出力）
 - preview        ビルド結果をプレビューする
 - test           単体テストを実行する（Vitest）
 - test-watch     単体テストをウォッチ実行する（Ctrl-C で抜ける）

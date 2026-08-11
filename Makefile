@@ -67,10 +67,6 @@ ci: ## package-lock.json どおりに依存をクリーンインストールす�
 build: ## 本番ビルドする（Nitro サーバ向け）
 	$(RUN) npm run build
 
-.PHONY: generate
-generate: ## 静的サイトを生成する（.output/public へ出力）
-	$(RUN) npm run generate
-
 .PHONY: preview
 preview: ## ビルド結果をプレビューする
 	$(COMPOSE) run --rm --no-deps --service-ports $(SERVICE) npm run preview
@@ -137,8 +133,19 @@ sb: ## 任意の supabase コマンドを実行する（例: make sb CMD="projec
 	@test -n "$(CMD)" || { echo 'CMD を指定してください。例: make sb CMD="projects list"'; exit 1; }
 	@$(ENV_SH) supabase $(CMD)
 
+# drizzle-kit は npm 依存のためコンテナ内で実行する（Supabase CLI とは逆）。
+# docker-compose.yml は .env をコンテナへ渡していないため -e での明示指定が必要。
+# 出力は .drizzle-pull/（gitignore 済み）に隔離される。server/db/schema.ts と
+# diff して必要な差分だけ手動反映する（pull 出力には numeric の mode: 'number' が
+# 付かないため、そのまま採用してはいけない）。
+.PHONY: db-drizzle-pull
+db-drizzle-pull: ## リモートDBからDrizzleスキーマ差分を確認する（生成物は手動マージ）
+	@$(ENV_SH) $(COMPOSE) run --rm --no-deps -e DIRECT_DATABASE_URL $(SERVICE) npx drizzle-kit pull
+
 # types/database.types.ts はリモートスキーマからの自動生成物。
 # マイグレーションを追加・変更したら必ず流し直す（手で書くとスキーマとズレる）。
+# Drizzle 移行後は DB アクセスに使わない。composables/*.ts が Row 型（AppUser / Member /
+# Project / SalesRecord 等）の導出元として参照しているため、クライアント側の型定義としてのみ残存する。
 .PHONY: db-types
 db-types: ## リモートスキーマから types/database.types.ts を再生成する
 	@$(ENV_SH) supabase gen types typescript \
@@ -151,6 +158,10 @@ db-types: ## リモートスキーマから types/database.types.ts を再生成
 		echo '//'; \
 		echo '// ★ 手で編集しないこと。スキーマを変えたら再生成する。'; \
 		echo '//   マイグレーション（supabase/migrations/）が唯一の正であり、このファイルはその写像。'; \
+		echo '//'; \
+		echo '// ★ Drizzle 移行後、DB アクセスにはこの型を使わない（server/api/** は server/db/schema.ts を使う）。'; \
+		echo '//   composables/*.ts が API レスポンスの Row 型（AppUser / Member / Project 等）の'; \
+		echo '//   導出元としてのみ参照しているため、クライアント側の型定義として残存させている。'; \
 		echo ''; \
 		cat /tmp/pb-db-types.ts; \
 	} > types/database.types.ts

@@ -1,6 +1,8 @@
+import type { FetchError } from 'ofetch'
 import type { Database } from '~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 import type { ProjectRowInput } from '~/lib/schemas/project'
+import { PG_ERROR_CODE } from '~/lib/pgErrorCodes'
 
 /** m_projects の1行（プロジェクト）。 */
 export type Project = Database['public']['Tables']['m_projects']['Row']
@@ -30,38 +32,30 @@ export type ProjectDraft = ProjectRowInput & {
  *   ページ遷移で作り直されるほうが、保存後に古いキャッシュが残らず素直に動く。
  */
 export const useProjects = () => {
-  const supabase = useSupabaseClient<Database>()
-
   const projects = ref<Project[]>([])
   const status = ref<FetchStatus>(FetchStatus.IDLE)
   const errorMessage = ref<string | null>(null)
 
   /**
-   * m_projects を全件取得する。
+   * m_projects を全件取得する。並び順（ID 昇順）はサーバ側（server/api/projects.get.ts）が保証する。
    *
-   * ★ order('id') は省略しない。PostgREST は ORDER BY がないと行順を保証せず、
-   *   UPDATE した行だけが末尾に飛ぶ挙動になりうる。
-   *   ID 昇順は登録順であり、「行追加は末尾」という仕様とも整合する。
+   * ★ RLS を通らない API サーバ接続だが、requireAppUser による認可は
+   *   middleware/auth.global.ts の AUTHORIZED 確認と同じ判定を再現しているため、
+   *   0件になるのは本当にプロジェクトがないときだけ。
    */
   const fetchProjects = async (): Promise<void> => {
     status.value = FetchStatus.LOADING
     errorMessage.value = null
 
-    const { data, error } = await supabase
-      .from('m_projects')
-      .select('*')
-      .order('id', { ascending: true })
-
-    if (error) {
+    try {
+      projects.value = await $fetch<Project[]>('/api/projects')
+      status.value = FetchStatus.SUCCESS
+    } catch (error) {
       console.error('[useProjects] m_projects の取得に失敗しました', error)
       projects.value = []
       errorMessage.value = 'プロジェクト情報を取得できませんでした。時間をおいて再度お試しください。'
       status.value = FetchStatus.ERROR
-      return
     }
-
-    projects.value = data ?? []
-    status.value = FetchStatus.SUCCESS
   }
 
   const isSaving = ref(false)
@@ -70,44 +64,20 @@ export const useProjects = () => {
   /**
    * このプロジェクトに実績があるかを判定する。削除制御に使う。
    *
-   * ★ 見るのは3テーブル。仕様の文言は t_sales / t_costs だけだが、
-   *   t_status も project_id の外部キーを持つ（init_schema.sql の t_status DDL）。
-   *   ここから漏らすと「削除できます」と見せてから、保存時に FK 違反で落ちる。
-   *   押した時点で拒否するという仕様の意図に合わせて3つとも見る。
-   *
-   * ★ Promise.all で並列に投げる。順番に await すると往復が3回積み上がり、
-   *   ゴミ箱を押してからボタンが戻るまでの待ちがそのまま3倍になる。
-   *
-   * ★ head: true で本体を転送しない。存在するかどうかしか要らないため。
-   *   idx_t_sales_project_id / idx_t_costs_project_id は DDL 側に
-   *   「プロジェクト削除ガード」のコメント付きで用意されている。
-   *   t_status は UNIQUE (fiscal_year, month, project_id) の先頭列が
-   *   fiscal_year なので project_id 単独では索引が効かないが、
-   *   年度×月×PJで1行しかできず件数が小さいので許容する。
-   *
-   * ★ 1つでも失敗したら true（実績あり）に倒す。判定できないまま削除を通すと、
+   * ★ 失敗したら true（実績あり）に倒す。判定できないまま削除を通すと、
    *   実績のあるプロジェクトを消そうとして DB の FK 違反にぶつかり、
    *   保存全体が途中で止まる。安全側は「消させない」。
    */
   const hasPerformanceRecords = async (projectId: number): Promise<boolean> => {
-    const countIn = async (table: 't_sales' | 't_costs' | 't_status'): Promise<number | null> => {
-      const { count, error } = await supabase
-        .from(table)
-        .select('id', { head: true, count: 'exact' })
-        .eq('project_id', projectId)
-        .limit(1)
-
-      if (error) {
-        console.error(`[useProjects] ${table} の実績確認に失敗しました`, error)
-        return null
-      }
-
-      return count ?? 0
+    try {
+      const { hasRecords } = await $fetch<{ hasRecords: boolean }>(
+        `/api/projects/${projectId}/has-performance`,
+      )
+      return hasRecords
+    } catch (error) {
+      console.error('[useProjects] 実績確認に失敗しました', error)
+      return true
     }
-
-    const counts = await Promise.all([countIn('t_sales'), countIn('t_costs'), countIn('t_status')])
-
-    return counts.some((count) => count === null || count > 0)
   }
 
   /** 既存行のうち、取得時から値が変わったものだけを拾う。 */
@@ -124,18 +94,15 @@ export const useProjects = () => {
   /**
    * 編集内容を一括保存する。成功したら true。
    *
-   * ★ 実行順は DELETE → UPDATE → INSERT。useMembers と揃えているが、
-   *   こちらに順序の必然性はない。m_users は email の UNIQUE 制約があり、
-   *   削除した行のメールを別の行に付け替えると一時的に重複するため
-   *   DELETE を先に置く必要があった。m_projects には UNIQUE がないので
-   *   どの順でも同じ結果になる。2画面で揃えているのは読む側の都合であって、
-   *   ここに制約回避の意味を読み取らないこと。
+   * ★ DELETE → UPDATE → INSERT の順序は server/api/projects.put.ts のトランザクション内で
+   *   維持される。m_projects には UNIQUE 制約がなく順序に必然性はないが、
+   *   useMembers（email の UNIQUE 制約により削除を先にする必要がある）と
+   *   構造を揃えるためにこの順序にしている。
    *
-   * ★ supabase-js はトランザクションを張れないので、途中で失敗すると
-   *   部分適用になる。呼び出し側は false を受けたら必ず再取得して、
-   *   画面を DB の実状態に合わせること。
+   * ★ 失敗時は Tx ごとロールバックされるため部分適用は起きない。それでも再取得するのは
+   *   画面表示を DB の実状態に合わせるため（保存前の編集内容を残したままにしない）。
    *
-   * ★ 変更のあった行だけ UPDATE する。全行を投げると無変更行の updated_at まで
+   * ★ 変更のあった行だけ UPDATE 対象として送る。全行を投げると無変更行の updated_at まで
    *   動き、「いつ触ったか」が追えなくなる。
    *
    * ★ 23505（UNIQUE 違反）の分岐は持たない。m_projects に一意制約がなく、
@@ -149,56 +116,28 @@ export const useProjects = () => {
     isSaving.value = true
     saveErrorMessage.value = null
 
+    const added = drafts.filter((draft) => draft.id === null)
+
     try {
-      if (deletedIds.length > 0) {
-        const { error } = await supabase.from('m_projects').delete().in('id', [...deletedIds])
-
-        if (error) {
-          console.error('[useProjects] プロジェクトの削除に失敗しました', error)
-          // 23503 = FK 違反。ゴミ箱押下時のチェックをすり抜けるのは、
-          // その後に他の利用者が実績を登録した場合。
-          saveErrorMessage.value =
-            error.code === '23503'
-              ? '実績データが登録されたため、削除できませんでした。画面を最新の状態に更新します。'
-              : 'プロジェクトの削除に失敗しました。'
-          return false
-        }
-      }
-
-      for (const draft of pickChanged(drafts, original)) {
-        const { error } = await supabase
-          .from('m_projects')
-          // updated_at は送らない。トリガ trg_m_projects_updated_at が自動で更新する。
-          .update({ service_name: draft.service_name, company_name: draft.company_name })
-          .eq('id', draft.id)
-
-        if (error) {
-          console.error('[useProjects] プロジェクトの更新に失敗しました', error)
-          saveErrorMessage.value = `「${draft.service_name}」の更新に失敗しました。`
-          return false
-        }
-      }
-
-      const added = drafts.filter((draft) => draft.id === null)
-
-      if (added.length > 0) {
-        const { error } = await supabase.from('m_projects').insert(
-          // ★ id は送らない。SERIAL の自動採番に任せる。明示するとシーケンスの
-          //   現在値がズレて、次の INSERT が主キー衝突する（seed.sql と同じ理由）。
-          added.map((draft) => ({
-            service_name: draft.service_name,
-            company_name: draft.company_name,
-          })),
-        )
-
-        if (error) {
-          console.error('[useProjects] プロジェクトの追加に失敗しました', error)
-          saveErrorMessage.value = 'プロジェクトの追加に失敗しました。'
-          return false
-        }
-      }
+      await $fetch('/api/projects', {
+        method: 'PUT',
+        body: {
+          drafts: [...pickChanged(drafts, original), ...added],
+          deletedIds: [...deletedIds],
+        },
+      })
 
       return true
+    } catch (error) {
+      console.error('[useProjects] プロジェクトの保存に失敗しました', error)
+      const pgCode = (error as FetchError)?.data?.data?.pgCode
+
+      saveErrorMessage.value =
+        pgCode === PG_ERROR_CODE.FOREIGN_KEY_VIOLATION
+          ? '実績データが登録されたため、削除できませんでした。画面を最新の状態に更新します。'
+          : 'プロジェクトの保存に失敗しました。'
+
+      return false
     } finally {
       isSaving.value = false
     }

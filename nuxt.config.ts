@@ -17,9 +17,20 @@ export default defineNuxtConfig({
   // @nuxt/ui が installModule で自動登録するため、ここには書かない（二重登録になる）。
   modules: ['@nuxt/ui', '@nuxtjs/supabase'],
 
+  runtimeConfig: {
+    // Drizzle が使う DB 接続文字列。.env の NUXT_DATABASE_URL で上書きされる。
+    // DB パスワードを含むため public に置かないこと（クライアントバンドルに露出する）。
+    databaseUrl: '',
+  },
+
   supabase: {
     // url / key は .env の SUPABASE_URL / SUPABASE_KEY から読まれる
     // （モジュールは NUXT_PUBLIC_SUPABASE_* を優先し、無ければこちらにフォールバックする）。
+
+    // ■ useSsrCookies（既定 true）を false にしないこと
+    //   セッションが cookie ではなく localStorage に保存されるようになり、
+    //   /api/** への $fetch にセッションが乗らず全 API ルートが 401 になる。
+    //   サーバ側の requireAppUser は cookie からのセッション復元に依存している。
 
     // ■ 内蔵リダイレクトを無効化する理由
     //   内蔵の global-auth ミドルウェアは「セッションの有無」しか見ない。
