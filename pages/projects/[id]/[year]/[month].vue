@@ -3,10 +3,8 @@ import { FetchStatus } from '~/lib/fetchStatus'
 import { formatYen } from '~/lib/format'
 import { calcLaborCost, calcWorkDays, summarize, sumAmount } from '~/lib/calc'
 import { FISCAL_MONTHS, shiftFiscalMonth, toCalendarYear } from '~/lib/fiscalYear'
-import type { Database } from '~/types/database.types'
 
 const route = useRoute()
-const supabase = useSupabaseClient<Database>()
 
 const toInt = (value: unknown): number | null => {
   const parsed = Number(value)
@@ -82,13 +80,22 @@ const buildNeighbor = async (offset: 1 | -1) => {
     return { to, month: next.month, hasRecords: found?.hasRecords ?? false }
   }
 
-  const scope = { project_id: projectId.value, fiscal_year: next.fiscalYear, month: next.month }
-  const [sales, costs] = await Promise.all([
-    supabase.from('t_sales').select('id', { head: true, count: 'exact' }).match(scope).limit(1),
-    supabase.from('t_costs').select('id', { head: true, count: 'exact' }).match(scope).limit(1),
-  ])
-
-  return { to, month: next.month, hasRecords: (sales.count ?? 0) > 0 || (costs.count ?? 0) > 0 }
+  // 年度をまたぐ隣月は、その年度の月別集計 API の結果から「該当月のグループが
+  // 存在するか」で判定する。1ヶ月分の count 専用エンドポイントは増やさない。
+  // 取得に失敗したら hasRecords: false（遷移不可）に倒す。
+  try {
+    const source = await $fetch<{ sales: { month: number }[]; costs: { month: number }[] }>(
+      `/api/projects/${projectId.value}/months`,
+      { query: { fiscalYear: next.fiscalYear } },
+    )
+    const hasRecords =
+      source.sales.some((row) => row.month === next.month) ||
+      source.costs.some((row) => row.month === next.month)
+    return { to, month: next.month, hasRecords }
+  } catch (error) {
+    console.error('[month] 隣月の実績確認に失敗しました', error)
+    return { to, month: next.month, hasRecords: false }
+  }
 }
 
 const previousMonth = ref<Awaited<ReturnType<typeof buildNeighbor>>>(null)

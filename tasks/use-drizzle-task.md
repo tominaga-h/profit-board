@@ -398,14 +398,28 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] プロジェクト年度別・月別画面の表示値が移行前後で一致する
-- [ ] 月別画面の隣月ナビゲーション（前月/翌月の活性判定）が移行前と同一に動作する
-- [ ] fiscalYear クエリが `getValidatedQuery` で必須検証されている
+- [x] プロジェクト年度別・月別画面の表示値が移行前後で一致する（ユーザー手動確認済み 2026-08-11）
+- [x] 月別画面の隣月ナビゲーション（前月/翌月の活性判定）が移行前と同一に動作する（年度またぎ含めユーザー手動確認済み 2026-08-11）
+- [x] fiscalYear クエリが `getValidatedQuery` で必須検証されている
 
 **検証:** 年度別・月別・隣月遷移の手動確認。`make test` 通過。
 **依存:** Task 5。Task 10 と並行可
-**触るファイル:** `server/api/projects/[id]/years.get.ts`（新規）, `server/api/projects/[id]/months.get.ts`（新規）, `composables/useProjectYears.ts`, `composables/useProjectMonths.ts`
+**触るファイル:** `server/api/projects/[id]/years.get.ts`（新規）, `server/api/projects/[id]/months.get.ts`（新規）, `composables/useProjectYears.ts`, `composables/useProjectMonths.ts`, `pages/projects/[id]/[year]/[month].vue`（計画外だが必須）
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェント実装 + 検収時追い込み）:**
+>
+> - years / months とも「GROUP BY 済み集計素材の行配列だけ返す」形（Task 10 の教訓4点を
+>   すべて反映: JSON セーフ / SUM の Number() 変換 / snake_case / coerce 検証）。
+>   サマリ畳み込み（粗利計算・並び順・12ヶ月生成・hasRecords 判定）はクライアントに残置
+> - months のクエリ検証は `dashboardQuerySchema` を流用（fiscalYear の妥当範囲を一元管理）
+> - **検収時修正（エージェントのスコープ外だった取り漏れ）**: `[month].vue` の年度またぎ
+>   隣月判定に PostgREST 直叩き count ×2 が残っていた。プラン 6.1 の「隣月判定も months API
+>   の結果を再利用」に従い、隣年度の months API を `$fetch` して該当月グループの有無で判定
+>   する形に置換。失敗時は hasRecords: false（遷移不可）に倒す。ページから
+>   `useSupabaseClient` / `Database` import も除去
+> - これで PostgREST 直叩きの残存は `useAppUser.resolve`（Task 12 対象）のみ
+> - 検証: `make test` 241 件通過、`nuxi typecheck` エラーなし、両 API とも未認証 curl 401
 
 ### Task 12: useAppUser / middleware の /api/me 化
 
