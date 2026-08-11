@@ -469,7 +469,7 @@ const lastUpdated = computed(() => {
 
         <!-- 売上 -->
         <tbody class="divide-y divide-slate-200">
-          <tr class="bg-slate-50/70">
+          <tr class="border-t bg-slate-50/70">
             <th scope="rowgroup" class="px-6 py-3 text-left text-sm font-bold text-slate-900">
               売上
             </th>
@@ -614,7 +614,7 @@ const lastUpdated = computed(() => {
 
         <!-- 粗利 -->
         <tbody class="border-t border-slate-200">
-          <tr class="bg-slate-50/70">
+          <tr class="border-b bg-slate-50/70">
             <th scope="rowgroup" class="px-6 py-3 text-left text-sm font-bold text-slate-900">
               粗利
             </th>
