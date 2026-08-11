@@ -463,9 +463,13 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] `grep -r "\.from(" composables/ pages/` が 0 件
-- [ ] `useSupabaseClient` の残存箇所がすべて Auth 用途である（目視確認）
-- [ ] `make db-check-rls` で全テーブルが `[]`（RLS 残置の確認）
+- [x] `grep -r "\.from(" composables/ pages/` が 0 件（components / layouts / middleware も含めて 0 件）
+- [x] `useSupabaseClient` の残存箇所がすべて Auth 用途である（`useAppUser.signOut` の `auth.signOut()` と `login.vue` の `auth.signInWithOAuth()` の2箇所のみ）
+- [x] `make db-check-rls` で全テーブルが `[]`（読み取り全遮断 + 書き込みも 42501 拒否を確認）
+
+> **実施記録（2026-08-11、直接実施）:** 取り漏れなし。Task 11 の検収時に `[month].vue` の
+> 残存を先行除去していたため、追加の修正は発生しなかった。RLS は PostgREST 防御層として
+> 引き続き機能している（anon key での読み取りが全テーブル空、INSERT は 42501 で拒否）。
 
 **検証:** 上記 grep / make コマンドの実行結果。
 **依存:** Task 5〜12 すべて
