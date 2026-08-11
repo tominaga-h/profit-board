@@ -45,7 +45,7 @@ const handleSignOut = async () => {
     <!-- ロゴ -->
     <div class="flex items-center gap-2.5 px-5 py-5">
       <div class="grid h-9 w-9 place-items-center rounded-lg bg-blue-600 text-white">
-        <UIcon name="i-lucide-chart-column" class="h-5 w-5" />
+        <AppLogo class="h-5 w-5" />
       </div>
       <span class="text-lg font-bold text-slate-900">ProfitBoard</span>
     </div>
