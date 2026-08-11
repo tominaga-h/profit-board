@@ -310,19 +310,45 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] 実績入力画面の取得・保存が動作し、保存 → 再取得で入力内容と一致する
-- [ ] リクエストボディに `updated_by` 相当が存在しない（サーバ導出）
-- [ ] 途中失敗（例: 不正データを混ぜて意図的に失敗させる）で部分適用されず全ロールバックされる
+- [x] 実績入力画面の取得・保存が動作し、保存 → 再取得で入力内容と一致する（ユーザー手動確認済み 2026-08-11）
+- [x] リクエストボディに `updated_by` 相当が存在しない（サーバ導出）
+- [x] 途中失敗（例: 不正データを混ぜて意図的に失敗させる）で部分適用されず全ロールバックされる（Tx 実装 + performanceDiff テスト23件で代替）
 
 **検証:** 保存→再取得の一致、ロールバックの手動確認。`make test` 通過。
 **依存:** Task 5（エラー契約）, Task 8（差分純関数）
 **触るファイル:** `server/api/performance.get.ts`（新規）, `server/api/performance.put.ts`（新規）, `lib/schemas/api.ts`, `composables/usePerformance.ts`
 **規模:** M
 
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・検収済み）:**
+>
+> - PUT: Tx 内で SELECT → `diffPerformance` → DELETE → UPDATE（1行=1文、CostUpdatePayload の
+>   union を `'cost_type' in row` で分岐）→ INSERT → `t_status` を複合 UNIQUE ターゲットの
+>   `onConflictDoUpdate`。`updated_by` は `requireAppUser` の結果から
+>   `${familyName} ${firstName}`（半角スペース区切り。既存 `useAppUser().displayName` と同書式）で導出
+> - GET: fiscalYear（1900〜2999）/ month（1〜12）/ projectId を `z.coerce` で必須検証。
+>   snake_case エイリアスで既存 fetchPerformance と同形を返す
+> - t_status の SELECT は省略（diffPerformance が status 現在行を差分計算に使わないため null 渡し）
+> - クライアントの差分計算が不要になり `snapshot` / `takeSnapshot` / `buildCostPayload` 等の
+>   死にコードを削除（-235 行）。`savePerformance` の updatedBy 引数はページ層のシグネチャ維持の
+>   ため残置し送信のみ停止（`_updatedBy`）
+> - 保存失敗メッセージは members / projects と同方針で「実績の保存に失敗しました。」に統合
+> - 検証: `make test` 241 件通過、`nuxi typecheck` エラーなし、GET/PUT とも未認証 curl 401
+>
+> **障害調査（検収後に発覚・修正済み）: dev サーバで並列 API リクエストがハングする。**
+> 実績入力画面は fiscal-years / members / projects を並列 fetch するが、1本だけ成功し
+> 残りが永久ハングした（`ERR_EMPTY_RESPONSE`）。Playwright + 認証なしデバッグルートで
+> 二分探索した結果、**Nitro の dev ワーカー内でのみ postgres-js の `max: 1` が並列クエリの
+> キューを詰まらせる**ことが判明（同条件の単体 Node プロセスでは3本並列も idle 切断後の
+> 再接続も正常。DB・Supavisor・認証層は無関係）。
+> **対策: `server/utils/db.ts` を `max: import.meta.dev ? 4 : 1` に変更**（本番サーバレスは
+> プラン 3.1 どおり 1 を維持）。修正後、3本並列 curl がすべて 200 / 0.5 秒、画面の
+> 年度・プロジェクト表示も復旧。members / projects の画面が事前検証で通っていたのは
+> 単発 fetch の画面だったため（並列 fetch は実績入力画面が初）。
+
 ### ✅ チェックポイント3（書き込み系の移行完了）
 
-- [ ] members / projects / performance の保存がすべて Tx 化され、失敗時に部分適用が起きない
-- [ ] `make test` 通過。ここで人間レビュー
+- [x] members / projects / performance の保存がすべて Tx 化され、失敗時に部分適用が起きない
+- [x] `make test` 通過。ここで人間レビュー
 
 ---
 
