@@ -171,19 +171,37 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] 年度一覧表示・年度追加が API 経由で動作する（画面挙動は移行前と同一）
-- [ ] 重複年度の追加で既存の日本語エラーメッセージがそのまま表示される（23505→409→pgCode 分岐）
-- [ ] `useFiscalYears` / `addYear` に `useSupabaseClient()` の DB 用途が残っていない
+- [x] 年度一覧表示・年度追加が API 経由で動作する（画面挙動は移行前と同一）
+- [x] 重複年度の追加で既存の日本語エラーメッセージがそのまま表示される（23505→409→pgCode 分岐）
+- [x] `useFiscalYears` / `addYear` に `useSupabaseClient()` の DB 用途が残っていない
 
 **検証:** 年度追加・重複追加を手動確認。`make test` 通過。
 **依存:** Task 3, Task 4
-**触るファイル:** `server/api/fiscal-years.get.ts`（新規）, `server/api/fiscal-years.post.ts`（新規）, `lib/schemas/api.ts`（新規）, `composables/useFiscalYears.ts`, `composables/useProjectYears.ts`
+**触るファイル:** `server/api/fiscal-years.get.ts`（新規）, `server/api/fiscal-years.post.ts`（新規）, `lib/schemas/api.ts`（新規）, `composables/useFiscalYears.ts`, `composables/useProjectYears.ts`, `server/utils/pgError.ts`（新規・計画外だが妥当）
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・検収済み）。後続タスクの雛形となる3つの知見:**
+>
+> 1. **`readValidatedBody` には `schema.parse` を渡す（`safeParse` は不可）。** h3 の `validateData` は
+>    戻り値が true/false 以外だとそのまま body として採用するため、`safeParse` の結果オブジェクトを
+>    返すと検証失敗を検知できない。`parse` なら ZodError が h3 側で 400 に変換される
+> 2. **`PostgresError` は named export ではない。** `import postgres from 'postgres'` して
+>    `error instanceof postgres.PostgresError` で判定する（named import は実行時エラー）
+> 3. **クライアントの pgCode 取り出しは `error.data.data.pgCode`（data が二重）。** h3 の
+>    `createError({ data })` はレスポンス JSON のトップレベル `data` キーに載り、ofetch の
+>    `FetchError.data` はレスポンスボディ全体を指すため。一時ルート + curl の実測で確認済み
+>
+> - エラー変換は `server/utils/pgError.ts` の `toPgHttpError`（23505/23503 → 409 + pgCode、他は再 throw）に共通化。members / projects / performance で再利用する
+> - Hunk レビュー指摘によりエラーコードを `lib/pgErrorCodes.ts` の `PG_ERROR_CODE` 定数に集約
+>   （サーバ・クライアント双方から参照するため `server/utils/` ではなく `lib/` に配置）。
+>   後続タスクのクライアント側分岐も `PG_ERROR_CODE.UNIQUE_VIOLATION` 等を使うこと
+> - 検証: `make test` 218 件通過、`nuxi typecheck` エラーなし、GET/POST とも未認証 curl 401
+> - 年度追加の成功・重複 409 の画面確認はユーザーが手動確認済み（2026-08-11）
 
 ### ✅ チェックポイント2（パイロット成立）
 
-- [ ] エンドポイント実装 → composable 差し替え → エラー契約、の型がここで確定
-- [ ] ここで人間レビュー（以降のタスクはこの型の反復になるため、パターンの妥当性をここで判断する）
+- [x] エンドポイント実装 → composable 差し替え → エラー契約、の型がここで確定
+- [x] ここで人間レビュー（以降のタスクはこの型の反復になるため、パターンの妥当性をここで判断する）
 
 ---
 

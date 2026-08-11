@@ -1,6 +1,8 @@
+import type { FetchError } from 'ofetch'
 import type { Database } from '~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 import { calcGrossProfit, sumAmount } from '~/lib/calc'
+import { PG_ERROR_CODE } from '~/lib/pgErrorCodes'
 
 /** 年度カード1枚分。年度マスタの行に、その年度の実績集計を添えたもの。 */
 export type ProjectYearSummary = {
@@ -78,21 +80,23 @@ export const useProjectYears = (projectId: number) => {
     isAdding.value = true
 
     try {
-      const { error } = await supabase.from('m_fiscal_years').insert({ year })
-
-      if (error) {
-        console.error('[useProjectYears] 年度の追加に失敗しました', error)
-        return {
-          ok: false,
-          message:
-            error.code === '23505'
-              ? `${year}年度は既に登録されています。`
-              : '年度の追加に失敗しました。',
-        }
-      }
+      await $fetch('/api/fiscal-years', { method: 'POST', body: { year } })
 
       await fetchYears()
       return { ok: true }
+    } catch (error) {
+      console.error('[useProjectYears] 年度の追加に失敗しました', error)
+      // h3 の createError({ data }) は sendError で { data: { pgCode } } として
+      // レスポンスに載る。ofetch の FetchError.data はそのレスポンス本体を指すため、
+      // pgCode は error.data.data に入る（実挙動で確認済み）。
+      const pgCode = (error as FetchError)?.data?.data?.pgCode
+      return {
+        ok: false,
+        message:
+          pgCode === PG_ERROR_CODE.UNIQUE_VIOLATION
+            ? `${year}年度は既に登録されています。`
+            : '年度の追加に失敗しました。',
+      }
     } finally {
       isAdding.value = false
     }
