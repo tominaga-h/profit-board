@@ -1,5 +1,5 @@
 import type { FetchError } from 'ofetch'
-import type { Database } from '~/types/database.types'
+import type { Database } from '~~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 import type { ProjectRowInput } from '~/lib/schemas/project'
 import { PG_ERROR_CODE } from '~/lib/pgErrorCodes'

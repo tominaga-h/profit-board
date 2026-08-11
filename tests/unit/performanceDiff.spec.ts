@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { CostType, diffPerformance } from '~/server/utils/performanceDiff'
-import type { CurrentCostRow, CurrentSalesRow, DesiredCostRow, DesiredPerformanceState } from '~/server/utils/performanceDiff'
+import { CostType, diffPerformance } from '../../server/utils/performanceDiff'
+import type { CurrentCostRow, CurrentSalesRow, DesiredCostRow, DesiredPerformanceState } from '../../server/utils/performanceDiff'
 
 /**
  * ★ diffPerformance は composables/usePerformance.ts の savePerformance と

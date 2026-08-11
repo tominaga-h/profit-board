@@ -1,4 +1,4 @@
-import type { Database } from '~/types/database.types'
+import type { Database } from '~~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 
 /** m_fiscal_years の一覧画面で扱う列。 */
