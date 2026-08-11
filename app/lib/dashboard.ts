@@ -6,9 +6,9 @@ import {
   buildYoYComparison,
   calcYoYPointDiff,
   calcYoYRate,
-  type MonthlyValues,
   type YoYComparison,
 } from '~/lib/fiscalYear'
+import { judgeStatus, type ProjectStatus } from '~/lib/statusJudge'
 
 /**
  * 集計元の1行。
@@ -31,6 +31,8 @@ export type MatrixRow = {
   /** 実績のある月だけを持つ。キーのない月が表の「-」になる。 */
   byMonth: ReadonlyMap<number, ProfitSummary>
   total: ProfitSummary
+  /** 当年度実績がないプロジェクトはバッジ非表示のため null。 */
+  status: ProjectStatus | null
 }
 
 /** 月次推移グラフの1点。 */
@@ -183,7 +185,38 @@ const buildMatrix = (
       byMonth,
       // 年間の粗利率は合計から出す。月次の率を平均すると売上規模を無視する。
       total: summarize(sumMonths(projectSales), sumMonths(projectCosts)),
+      status: null,
     }
+  })
+}
+
+/**
+ * マトリクス行に年度比較のステータスを付与する。
+ *
+ * ★ judgeStatus は月次判定にも使う共通関数なので、ここでは「前年度の年間粗利」を
+ *   前月実績の位置に渡して年度比較として使う。
+ */
+const withStatus = (
+  rows: readonly MatrixRow[],
+  previousYearSales: readonly PerformanceRow[],
+  previousYearCosts: readonly PerformanceRow[],
+): MatrixRow[] => {
+  const previousSalesByProject = groupByProject(previousYearSales)
+  const previousCostsByProject = groupByProject(previousYearCosts)
+
+  return rows.map((row) => {
+    // 実績なしとゼロ実績を byMonth の有無で区別する（total だけでは判別できない）。
+    if (row.byMonth.size === 0) return row
+
+    const previousSales = previousSalesByProject.get(row.projectId)
+    const previousCosts = previousCostsByProject.get(row.projectId)
+    // 前年度に行が1件もない場合のみ null（judgeStatus 側の「前年データなし」規則に委ねる）。
+    const previousProfit =
+      previousSales || previousCosts
+        ? sumMonths(foldByMonth(previousSales ?? [])) - sumMonths(foldByMonth(previousCosts ?? []))
+        : null
+
+    return { ...row, status: judgeStatus(row.total.grossProfit, previousProfit) }
   })
 }
 
@@ -212,10 +245,13 @@ export const buildDashboardData = (
   const currentSalesRows = filterByYear(salesRows, fiscalYear)
   const currentCostsRows = filterByYear(costsRows, fiscalYear)
 
+  const previousYearSalesRows = filterByYear(salesRows, fiscalYear - 1)
+  const previousYearCostsRows = filterByYear(costsRows, fiscalYear - 1)
+
   const currentSales = foldByMonth(currentSalesRows)
   const currentCosts = foldByMonth(currentCostsRows)
-  const previousSales = foldByMonth(filterByYear(salesRows, fiscalYear - 1))
-  const previousCosts = foldByMonth(filterByYear(costsRows, fiscalYear - 1))
+  const previousSales = foldByMonth(previousYearSalesRows)
+  const previousCosts = foldByMonth(previousYearCostsRows)
 
   // 月は必ず12件返す。実績のない月を欠番にするとグラフのX軸が詰まって並ぶ。
   const monthly = FISCAL_MONTHS.map((month) => ({
@@ -228,6 +264,10 @@ export const buildDashboardData = (
     kpi: summarize(sumMonths(currentSales), sumMonths(currentCosts)),
     yoy: buildYoY(currentSales, currentCosts, previousSales, previousCosts),
     monthly,
-    matrix: buildMatrix(projects, currentSalesRows, currentCostsRows),
+    matrix: withStatus(
+      buildMatrix(projects, currentSalesRows, currentCostsRows),
+      previousYearSalesRows,
+      previousYearCostsRows,
+    ),
   }
 }

@@ -313,3 +313,86 @@ describe('buildDashboardData - マトリクス', () => {
     expect(data.kpi.totalSales).toBe(1000)
   })
 })
+
+describe('buildDashboardData - マトリクスのステータス', () => {
+  it('黒字かつ前年度より増益なら成長', () => {
+    const data = buildDashboardData(
+      2023,
+      PROJECTS,
+      [row(2023, 7, 1, 1000), row(2022, 7, 1, 500)],
+      [],
+    )
+
+    expect(data.matrix[0].status).toBe('growth')
+  })
+
+  it('黒字かつ前年度より減益または同額なら順調', () => {
+    const data = buildDashboardData(
+      2023,
+      PROJECTS,
+      [row(2023, 7, 1, 1000), row(2022, 7, 1, 1000)],
+      [],
+    )
+
+    expect(data.matrix[0].status).toBe('stable')
+  })
+
+  it('赤字かつ前年度より改善していれば注意', () => {
+    const data = buildDashboardData(
+      2023,
+      PROJECTS,
+      [row(2023, 7, 1, 1000), row(2022, 7, 1, 1000)],
+      [row(2023, 7, 1, 1200), row(2022, 7, 1, 3000)],
+    )
+
+    expect(data.matrix[0].status).toBe('caution')
+  })
+
+  it('赤字かつ前年度より悪化または同額なら警告', () => {
+    const data = buildDashboardData(
+      2023,
+      PROJECTS,
+      [row(2023, 7, 1, 1000), row(2022, 7, 1, 1000)],
+      [row(2023, 7, 1, 1500), row(2022, 7, 1, 1200)],
+    )
+
+    expect(data.matrix[0].status).toBe('warning')
+  })
+
+  it('前年度実績なし・黒字なら順調', () => {
+    const data = buildDashboardData(2023, PROJECTS, [row(2023, 7, 1, 1000)], [])
+
+    expect(data.matrix[0].status).toBe('stable')
+  })
+
+  it('前年度実績なし・赤字なら警告', () => {
+    const data = buildDashboardData(2023, PROJECTS, [], [row(2023, 7, 1, 1000)])
+
+    expect(data.matrix[0].status).toBe('warning')
+  })
+
+  it('前年度の合計が偶然0円でも行があれば前年データありとして扱う', () => {
+    // 売上1000・費用1000で前年度粗利は0。null（前年データなし）と区別する。
+    const data = buildDashboardData(
+      2023,
+      PROJECTS,
+      [row(2023, 7, 1, 1000), row(2022, 7, 1, 1000)],
+      [row(2022, 7, 1, 1000)],
+    )
+
+    // 当年黒字・前年0からの増益なので growth（null 扱いなら黒字→stable になり区別できる）。
+    expect(data.matrix[0].status).toBe('growth')
+  })
+
+  it('当年度実績がなければステータスは null', () => {
+    const data = buildDashboardData(2023, PROJECTS, [row(2022, 7, 1, 1000)], [])
+
+    expect(data.matrix[0].status).toBeNull()
+  })
+
+  it('当年度に金額0の行だけでも実績ありとして判定する', () => {
+    const data = buildDashboardData(2023, PROJECTS, [row(2023, 7, 1, 0)], [])
+
+    expect(data.matrix[0].status).not.toBeNull()
+  })
+})

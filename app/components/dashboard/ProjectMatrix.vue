@@ -2,6 +2,7 @@
 import { formatPercent, formatYen, NO_VALUE } from '~/lib/format'
 import { FISCAL_MONTHS, toCalendarYear } from '~/lib/fiscalYear'
 import type { MatrixRow } from '~/lib/dashboard'
+import { PROJECT_STATUS_META } from '~/lib/statusJudge'
 
 const props = defineProps<{
   fiscalYear: number
@@ -104,12 +105,25 @@ const isNegative = (row: MatrixRow, metric: MetricKey): boolean =>
                 v-if="index === 0"
                 scope="rowgroup"
                 :rowspan="METRICS.length"
-                class="px-6 py-3 text-left align-top"
+                class="relative px-6 py-3 text-left align-top"
               >
                 <span class="block text-sm font-semibold text-slate-900">
                   {{ row.serviceName }}
                 </span>
                 <span class="mt-0.5 block text-xs text-slate-500">{{ row.companyName }}</span>
+                <!-- UBadge の color は Nuxt UI の色名限定で hex を渡せないため生の span で組む。
+                     背景は hex + アルファ2桁の文字列連結。META が全て6桁hexなので安全。 -->
+                <!-- th に高さ指定がなく flex の h-full が効かないため、下寄せは absolute で行う。 -->
+                <span
+                  v-if="row.status"
+                  class="absolute bottom-3 left-6 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+                  :style="{
+                    color: PROJECT_STATUS_META[row.status].color,
+                    backgroundColor: `${PROJECT_STATUS_META[row.status].color}1a`,
+                  }"
+                >
+                  {{ PROJECT_STATUS_META[row.status].label }}
+                </span>
               </th>
 
               <td
