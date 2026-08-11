@@ -336,13 +336,11 @@ const lastUpdated = computed(() => {
 
 <template>
   <div>
-    <!--
-      パンくず。デザイン画像の「PRJ-2025-008」形式のコードは採用しない
-      （m_projects にコード列がなく、DDL にも根拠がない）。
-    -->
-    <p v-if="isReady" class="mb-2 text-xs text-slate-400">
-      実績入力 › {{ selectedYear }}年度 {{ selectedMonth }}月 › {{ selectedProjectName }}
-    </p>
+    <Breadcrumbs v-if="isReady" :items="[
+      { label: '実績入力' },
+      { label: `${selectedYear}年度 ${selectedMonth}月` },
+      { label: `${selectedProjectName}` },
+    ]" />
 
     <PageHeader title="売上・費用実績入力" subtitle="プロジェクト×年月の実績を入力します">
       <template #actions>
