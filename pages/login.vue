@@ -54,7 +54,7 @@ const signInWithGoogle = async () => {
   <div class="w-full max-w-md">
     <UCard class="py-10 px-7 shadow-lg">
       <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-600 text-white">
-        <UIcon name="i-lucide-chart-column" class="h-7 w-7" />
+        <AppLogo class="h-7 w-7" />
       </div>
 
       <h1 class="mt-4 text-center text-2xl font-bold text-slate-900">ProfitBoard</h1>
