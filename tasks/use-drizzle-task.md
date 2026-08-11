@@ -252,14 +252,26 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] プロジェクト一覧・編集保存（追加/更新/削除混在）が動作する
-- [ ] 実績のあるプロジェクト削除で 409 → 既存の日本語メッセージ、DB は全ロールバック
-- [ ] has-performance が 1 クエリで判定している（3 往復していない）
+- [x] プロジェクト一覧・編集保存（追加/更新/削除混在）が動作する（ユーザー手動確認済み 2026-08-11）
+- [x] 実績のあるプロジェクト削除で 409 → 既存の日本語メッセージ、DB は全ロールバック（ユーザー手動確認済み 2026-08-11）
+- [x] has-performance が 1 クエリで判定している（3 往復していない）
 
 **検証:** 手動確認 + `make test` 通過。
 **依存:** Task 6（同型パターンの流用元として。実装自体は Task 5 完了後なら並行可）
 **触るファイル:** `server/api/projects.get.ts`（新規）, `server/api/projects.put.ts`（新規）, `server/api/projects/[id]/has-performance.get.ts`（新規）, `lib/schemas/api.ts`, `composables/useProjects.ts`
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・検収済み）:**
+>
+> - members と同型の Tx（DELETE → UPDATE 1行=1文 → INSERT）。「m_projects に UNIQUE がなく
+>   順序に必然性はない、useMembers と構造を揃えただけ」の知見をサーバ側コメントに移植済み
+> - has-performance は count 3本の Promise.all → `EXISTS ×3 を OR で束ねた1クエリ`
+>   （`sql` テンプレート）。t_status を含める理由コメントも既存から踏襲
+> - GET は snake_case エイリアスで返却（Task 6 の教訓を最初から適用）
+> - 保存失敗メッセージは members の方針に揃えて pgCode 別に統合（FK 違反は旧文言維持、
+>   他は「プロジェクトの保存に失敗しました。」）。**23505 分岐は追加していない**
+>   （m_projects に UNIQUE がなく到達しない死にコードになるため。妥当な判断）
+> - 検証: `make test` 218 件通過、`nuxi typecheck` エラーなし、3 エンドポイントとも未認証 curl 401
 
 ### Task 8: performance 差分計算の純関数とテスト（テスト先行）
 
