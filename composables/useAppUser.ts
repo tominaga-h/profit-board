@@ -1,4 +1,5 @@
 import type { Database } from '~/types/database.types'
+import type { FetchError } from 'ofetch'
 
 /** m_users の1行（アプリ利用が許可されたメンバー） */
 export type AppUser = Database['public']['Tables']['m_users']['Row']
@@ -70,24 +71,27 @@ export const useAppUser = () => {
 
     status.value = AppUserStatus.LOADING
 
-    // RLS により、m_users に未登録のユーザーからは 0 件しか返らない。
-    // つまりこの照合はアプリ側とDB側の両方で成立している。
-    const { data, error } = await supabase
-      .from('m_users')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle()
+    // /api/me 側の requireAppUser が m_users 照合を行う（RLSを経由しないテーブルオーナー
+    // 接続のため、この照合が唯一の防御線）。403 は「未登録」であり例外扱いにしない。
+    try {
+      const data = await $fetch<AppUser>('/api/me')
+      appUser.value = data
+      status.value = AppUserStatus.AUTHORIZED
+    } catch (error) {
+      const statusCode = (error as FetchError)?.statusCode
 
-    if (error) {
-      // 通信断・RLS拒否などは「登録済み」と見なさない。
-      console.error('[useAppUser] m_users の照合に失敗しました', error)
+      if (statusCode === 403) {
+        appUser.value = null
+        status.value = AppUserStatus.UNREGISTERED
+        return status.value
+      }
+
+      // 401・通信断・500 などは「登録済み」と見なさない（fail-closed）。
+      console.error('[useAppUser] /api/me の照合に失敗しました', error)
       appUser.value = null
       status.value = AppUserStatus.UNREGISTERED
-      return status.value
     }
 
-    appUser.value = data ?? null
-    status.value = data ? AppUserStatus.AUTHORIZED : AppUserStatus.UNREGISTERED
     return status.value
   }
 

@@ -427,9 +427,21 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] 登録ユーザーのログイン → `/dashboard` 遷移、サイドバーの氏名表示が従来どおり
-- [ ] 未登録アカウントはログイン不可メッセージが出てセッションが残らない
-- [ ] ログアウト → `/login` リダイレクトが従来どおり。API エラー時は UNREGISTERED 扱い（fail-closed）
+- [x] 登録ユーザーのログイン → `/dashboard` 遷移、サイドバーの氏名表示が従来どおり（Playwright で確認）
+- [x] 未登録アカウントはログイン不可メッセージが出てセッションが残らない（実アカウントでは未確認。403 → UNREGISTERED のマッピングと middleware 無変更で担保）
+- [x] ログアウト → `/login` リダイレクトが従来どおり。API エラー時は UNREGISTERED 扱い（fail-closed）（signOut / middleware 無変更のため挙動不変）
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・Playwright 検収済み）:**
+>
+> - `me.get.ts` を snake_case 詰め替えに修正（camelCase 素通しだった Task 4 時点の形を解消）。
+>   `requireAppUser` 自体は camelCase のまま不変（performance.put.ts の updated_by 導出が依存）
+> - `resolve()` の状態マッピング: 200 → AUTHORIZED / 403 → UNREGISTERED /
+>   401・通信断・500 → fail-closed で UNREGISTERED。`FetchError.statusCode` の存在は
+>   ofetch の実装（createFetchError）で裏取り済み
+> - `middleware/auth.global.ts` は無変更（useAppUser の公開インターフェース不変のため）
+> - **`grep -rn "\.from(" composables/ pages/` が 0 件になった**（PostgREST 直叩き完全除去）
+> - 検証: `make test` 241 件通過、typecheck エラーなし、未認証 curl 401、
+>   Playwright で /api/me の snake_case 応答・サイドバー氏名表示・画面遷移を確認
 
 **検証:** 登録済み / 未登録 / ログアウトの 3 遷移を手動確認。
 **依存:** Task 4
