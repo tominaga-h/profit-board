@@ -7,7 +7,10 @@ import { defineConfig } from 'drizzle-kit'
 export default defineConfig({
   dialect: 'postgresql',
   schema: './server/db/schema.ts',
-  out: './server/db',
+  // pull の出力は作業用フォルダ（gitignore 済み）へ隔離する。
+  // server/db に向けると手メンテの schema.ts が上書きされ、
+  // migration 用の SQL / meta も毎回生成されてしまう。
+  out: './.drizzle-pull',
   // pull は Supavisor session mode（:5432）を使う。transaction mode は
   // drizzle-kit の introspection と相性が悪い。
   dbCredentials: { url: process.env.DIRECT_DATABASE_URL! },

@@ -139,8 +139,9 @@ sb: ## 任意の supabase コマンドを実行する（例: make sb CMD="projec
 
 # drizzle-kit は npm 依存のためコンテナ内で実行する（Supabase CLI とは逆）。
 # docker-compose.yml は .env をコンテナへ渡していないため -e での明示指定が必要。
-# 生成物は server/db/schema.ts へ手動マージする（numeric の mode: 'number' が
-# pull 再実行で消えるため、pull 出力をそのまま採用してはいけない）。
+# 出力は .drizzle-pull/（gitignore 済み）に隔離される。server/db/schema.ts と
+# diff して必要な差分だけ手動反映する（pull 出力には numeric の mode: 'number' が
+# 付かないため、そのまま採用してはいけない）。
 .PHONY: db-drizzle-pull
 db-drizzle-pull: ## リモートDBからDrizzleスキーマ差分を確認する（生成物は手動マージ）
 	@$(ENV_SH) $(COMPOSE) run --rm --no-deps -e DIRECT_DATABASE_URL $(SERVICE) npx drizzle-kit pull

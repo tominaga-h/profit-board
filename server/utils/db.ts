@@ -1,11 +1,12 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
+import * as schema from '../db/schema'
 
 // モジュールスコープで1回だけ生成するシングルトン。
 // サーバレスでは関数インスタンスごとに再利用され、リクエストごとの接続生成を避ける。
-let db: PostgresJsDatabase | undefined
+let db: PostgresJsDatabase<typeof schema> | undefined
 
-export const useDb = (): PostgresJsDatabase => {
+export const useDb = (): PostgresJsDatabase<typeof schema> => {
   if (!db) {
     const client = postgres(useRuntimeConfig().databaseUrl, {
       // 接続先は Supavisor transaction mode（:6543）。
@@ -17,7 +18,7 @@ export const useDb = (): PostgresJsDatabase => {
       idle_timeout: 20,
       connect_timeout: 10,
     })
-    db = drizzle(client)
+    db = drizzle(client, { schema })
   }
   return db
 }

@@ -91,9 +91,9 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] `server/db/schema.ts` に 5 テーブルの定義が存在し、型検査が通る
-- [ ] numeric 列すべてに `mode: 'number'` が付与されている（`string` になる列がない）
-- [ ] 「pull は差分検証専用・スキーマは手メンテ・generate/push/migrate 禁止」の Why not コメントがある
+- [x] `server/db/schema.ts` に 5 テーブルの定義が存在し、型検査が通る
+- [x] numeric 列すべてに `mode: 'number'` が付与されている（`string` になる列がない）
+- [x] 「pull は差分検証専用・スキーマは手メンテ・generate/push/migrate 禁止」の Why not コメントがある
 
 **検証:** `make test`（型検査込み）通過。schema.ts から `InferSelectModel` した型の numeric 列が `number` であることを確認。
 **依存:** Task 2
@@ -101,6 +101,24 @@ Task 2 (依存追加 + DB接続基盤)
 **規模:** S
 
 > **pull を再実行すると `mode: 'number'` が消える**（プラン 4.3）。最重要の落とし穴のため受け入れ基準で明示的に確認する。
+
+> **実施記録（2026-08-11 完了、Sonnet サブエージェントで実装）:**
+>
+> - pull で 6 テーブルを取得: `m_users` / `m_projects` / `t_sales` / `t_costs` / `t_status` / `m_fiscal_years`（RLS ポリシー・インデックス・FK 定義も schema.ts に含まれる）
+> - `mode: 'number'` を 6 列に付与: `t_costs.work_hours` / `t_costs.work_days` / `t_costs.unit_price` / `t_costs.amount` / `m_users.unit_price` / `t_sales.amount`。**`work_days`（NUMERIC(6,2)）はプラン 4.3 に明記がないが同型・同用途のため追加**。`mode: 'number'` に伴い `.default('0')` → `.default(0)` に修正
+> - `server/utils/db.ts` にスキーマを接続（`drizzle(client, { schema })`、`PostgresJsDatabase<typeof schema>`）。プラン 3.3 の形に到達
+> - 検証: `make test` 218 件全通過、`nuxi typecheck` エラーなし
+> - **残件**: pull が生成した migration アーティファクト（`server/db/0000_reflective_expediter.sql`、`server/db/meta/`)は rm 権限拒否のため未削除。手動削除が必要
+>
+> **運用変更（2026-08-11 追記）: pull 出力先を `.drizzle-pull/` に分離。** `drizzle.config.ts` の
+> `out` を `./.drizzle-pull` に変更し、`.gitignore` に追加した。これにより pull を実行しても
+> 手メンテの `server/db/schema.ts` は上書きされず、SQL / meta アーティファクトも `server/db` に
+> 生成されない。drift 確認は「`.drizzle-pull/schema.ts` と `server/db/schema.ts` を diff して
+> 必要な差分だけ手動反映」の手順になる（schema.ts 冒頭・Makefile のコメントにも反映済み）。
+> なお「Drizzle にマイグレーション管理も移す」案も検討したが、`is_app_user()` 関数と
+> `updated_at` トリガは Drizzle スキーマで表現できず手書き SQL マイグレーションが残ること、
+> 適用済み履歴のベースライン化リスクがあることから、Supabase CLI 維持（プラン確定方針4）で
+> 確定した。
 
 ### Task 4: requireAppUser と GET /api/me
 
