@@ -294,9 +294,11 @@ watch(() => route.params.month, load)
                 {{ formatYen(summary.grossProfit) }}
               </td>
             </tr>
-            <tr v-if="form.remark">
+            <tr>
               <th scope="row" class="px-6 py-3 text-left text-sm font-semibold text-slate-900">備考</th>
-              <td colspan="6" class="px-3 py-3 text-sm text-slate-600">{{ form.remark }}</td>
+              <td colspan="6" class="px-3 py-3 text-sm" :class="form.remark ? 'text-slate-600' : 'text-slate-400'">
+                {{ form.remark || '—' }}
+              </td>
             </tr>
           </tbody>
         </table>
