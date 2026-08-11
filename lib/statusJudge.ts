@@ -1,9 +1,9 @@
-/** プロジェクトの月次ステータス判定（SPEC 6.2）。 */
+/** プロジェクトの月次ステータス判定。 */
 
 /**
- * プロジェクトの月次ステータス（SPEC 6.2、plan.md A3）。
+ * プロジェクトの月次ステータス。
  *
- * デザイン画像にある「遅延」「完了」は採用しない（A3: SPECを正とする）。
+ * デザイン画像にある「遅延」「完了」は採用しない（仕様を正とする）。
  * キーを英語にしているのは、一覧画面のフィルタを URL クエリ
  * （/projects?status=growth）に載せるため。
  */
@@ -20,11 +20,11 @@ export const ProjectStatus = {
 export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus]
 
 /**
- * ステータスの表示情報。配色は SPEC 6.2 の指定値そのまま。
+ * ステータスの表示情報。配色は仕様の指定値そのまま。
  *
  * ★ Tailwind のクラス名（green-500 等）ではなく hex を持つ。
  *   Tailwind のパレットはバージョンによって色値が変わるため、
- *   SPEC が hex で指定している以上こちらを確定値とする。
+ *   仕様が hex で指定している以上こちらを確定値とする。
  *
  * satisfies を付けているのは、ProjectStatus に値を足したのに
  * ここへの追記を忘れた場合にコンパイルエラーで気付けるようにするため。
@@ -37,7 +37,7 @@ export const PROJECT_STATUS_META = {
 } as const satisfies Record<ProjectStatus, { label: string; color: string }>
 
 /**
- * 月次ステータスを判定する（SPEC 6.2）。
+ * 月次ステータスを判定する。
  *
  * 当月利益の黒字/赤字（0以上が黒字）と、前月からの利益の増減で4通りに分かれる。
  *
@@ -50,7 +50,7 @@ export const judgeStatus = (
   currentProfit: number,
   previousProfit: number | null,
 ): ProjectStatus => {
-  // SPEC 6.2 の「黒字: 0以上」。0 を赤字側に入れないよう >= で判定する。
+  // 仕様上の黒字は0以上。0 を赤字側に入れないよう >= で判定する。
   const isProfitable = currentProfit >= 0
 
   // 前月データが存在しない場合（年度初月等）の規則。
@@ -58,7 +58,7 @@ export const judgeStatus = (
     return isProfitable ? ProjectStatus.STABLE : ProjectStatus.WARNING
   }
 
-  // SPEC 6.2 の「前月比」は率ではなく利益の差分。
+  // 仕様上の「前月比」は率ではなく利益の差分。
   // 「プラス」は > 0 なので、差分0は「一致またはマイナス」側に入る。
   const isImproving = currentProfit - previousProfit > 0
 
@@ -71,8 +71,8 @@ export const judgeStatus = (
 /**
  * 前月比（利益の差分）。前月データがなければ null（画面では「-」表示）。
  *
- * ★ SPEC 6.2 の「前月比」は率ではなく差分なので、金額の差をそのまま返す。
- *   一覧画面（SPEC 4.2）の「前月比」列もこの値を使う。
+ * ★ 仕様上の「前月比」は率ではなく差分なので、金額の差をそのまま返す。
+ *   一覧画面の「前月比」列もこの値を使う。
  */
 export const calcMonthOverMonthDiff = (
   currentProfit: number,

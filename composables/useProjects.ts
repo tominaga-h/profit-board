@@ -6,7 +6,7 @@ import type { ProjectRowInput } from '~/lib/schemas/project'
 export type Project = Database['public']['Tables']['m_projects']['Row']
 
 /**
- * 編集画面が持つ1行（Task 7）。
+ * 編集画面が持つ1行。
  *
  * ★ id は「まだ採番されていない新規行」を null で表す。0 や -1 で代用すると
  *   既存行の id と混ざり、UPDATE すべき行を INSERT してしまう。
@@ -21,7 +21,7 @@ export type ProjectDraft = ProjectRowInput & {
 }
 
 /**
- * プロジェクトマスタ（m_projects）の取得と保存（SPEC 4.5）。
+ * プロジェクトマスタ（m_projects）の取得と保存。
  *
  * ★ useMembers と同じ構造だが、m_projects には UNIQUE 制約が一切ない点が違う。
  *   同名の行を DB は受け入れるので 23505 は起こりえず、その分岐は持たない。
@@ -41,7 +41,7 @@ export const useProjects = () => {
    *
    * ★ order('id') は省略しない。PostgREST は ORDER BY がないと行順を保証せず、
    *   UPDATE した行だけが末尾に飛ぶ挙動になりうる。
-   *   ID 昇順は登録順であり、SPEC 4.5 の「行追加は末尾」とも整合する。
+   *   ID 昇順は登録順であり、「行追加は末尾」という仕様とも整合する。
    */
   const fetchProjects = async (): Promise<void> => {
     status.value = FetchStatus.LOADING
@@ -64,25 +64,23 @@ export const useProjects = () => {
     status.value = FetchStatus.SUCCESS
   }
 
-  // --- 以下は保存系（Task 7） ------------------------------------------
-
   const isSaving = ref(false)
   const saveErrorMessage = ref<string | null>(null)
 
   /**
-   * このプロジェクトに実績があるかを判定する（SPEC 4.5 の削除制御）。
+   * このプロジェクトに実績があるかを判定する。削除制御に使う。
    *
-   * ★ 見るのは3テーブル。SPEC 4.5 の文言は t_sales / t_costs だけだが、
+   * ★ 見るのは3テーブル。仕様の文言は t_sales / t_costs だけだが、
    *   t_status も project_id の外部キーを持つ（init_schema.sql の t_status DDL）。
    *   ここから漏らすと「削除できます」と見せてから、保存時に FK 違反で落ちる。
-   *   押した時点で拒否するという SPEC の意図に合わせて3つとも見る。
+   *   押した時点で拒否するという仕様の意図に合わせて3つとも見る。
    *
    * ★ Promise.all で並列に投げる。順番に await すると往復が3回積み上がり、
    *   ゴミ箱を押してからボタンが戻るまでの待ちがそのまま3倍になる。
    *
    * ★ head: true で本体を転送しない。存在するかどうかしか要らないため。
-   *   idx_t_sales_project_id / idx_t_costs_project_id は Task 2 の時点で
-   *   「プロジェクト削除ガード（Task 7）」のコメント付きで用意されている。
+   *   idx_t_sales_project_id / idx_t_costs_project_id は DDL 側に
+   *   「プロジェクト削除ガード」のコメント付きで用意されている。
    *   t_status は UNIQUE (fiscal_year, month, project_id) の先頭列が
    *   fiscal_year なので project_id 単独では索引が効かないが、
    *   年度×月×PJで1行しかできず件数が小さいので許容する。
@@ -124,7 +122,7 @@ export const useProjects = () => {
     })
 
   /**
-   * 編集内容を一括保存する（Task 7）。成功したら true。
+   * 編集内容を一括保存する。成功したら true。
    *
    * ★ 実行順は DELETE → UPDATE → INSERT。useMembers と揃えているが、
    *   こちらに順序の必然性はない。m_users は email の UNIQUE 制約があり、

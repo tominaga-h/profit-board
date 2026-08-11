@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { FetchStatus } from '~/lib/fetchStatus'
 
-// 保存系も返るが、この画面は取得しかしないので受け取らない。
 const { projects, status, errorMessage, fetchProjects } = useProjects()
 
 onMounted(fetchProjects)

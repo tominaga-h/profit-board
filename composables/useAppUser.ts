@@ -19,7 +19,7 @@ export const AppUserStatus = {
   AUTHORIZED: 'authorized',
   /** 未認証（セッションなし） */
   UNAUTHENTICATED: 'unauthenticated',
-  /** 認証済みだが m_users に未登録 → SPEC 3.1 によりアクセス不可 */
+  /** 認証済みだが m_users に未登録。仕様によりアクセス不可 */
   UNREGISTERED: 'unregistered'
 } as const
 export type AppUserStatus = (typeof AppUserStatus)[keyof typeof AppUserStatus]
@@ -28,7 +28,7 @@ export type AppUserStatus = (typeof AppUserStatus)[keyof typeof AppUserStatus]
 /**
  * ログイン中ユーザーが m_users に登録されているかを解決し、その結果を保持する。
  *
- * SPEC 3.1「Supabase Auth で Google 認証後、m_users に存在するメールのみ許可」を
+ * 「Supabase Auth で Google 認証後、m_users に存在するメールのみ許可」という仕様を
  * アプリ側で実装する部分。DB側は RLS（is_app_user()）が同じ条件で二重に守っている。
  */
 export const useAppUser = () => {

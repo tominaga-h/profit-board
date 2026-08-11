@@ -46,7 +46,7 @@ export type DashboardYoY = {
   sales: number | null
   costs: number | null
   profit: number | null
-  /** 利益率は率どうしの比較なので % ではなく pt 差（SPEC 4.1）。 */
+  /** 利益率は率どうしの比較なので % ではなく pt 差。 */
   profitRatePoint: number | null
   /** 比較に使った月。「7〜1月の累計比較」と注記するために持つ。 */
   months: readonly number[]

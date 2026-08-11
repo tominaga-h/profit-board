@@ -55,7 +55,7 @@ describe('roundTo', () => {
 })
 
 describe('calcWorkDays', () => {
-  it('2.0時間は0.25人日（plan.md A5 の例）', () => {
+  it('2.0時間は0.25人日', () => {
     expect(calcWorkDays(2.0)).toBe(0.25)
   })
 
@@ -175,7 +175,7 @@ describe('calcProfitRate', () => {
     expect(calcProfitRate(1000000, 1000000)).toBeCloseTo(100)
   })
 
-  it('売上0なら0%を返す（SPEC 6.1-⑥）', () => {
+  it('売上0なら0%を返す', () => {
     const rate = calcProfitRate(0, -500000)
     expect(rate).toBe(0)
     // -Infinity になっていないことを明示的に確認する。

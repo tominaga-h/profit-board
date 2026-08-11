@@ -22,7 +22,7 @@ export const CostType = {
 } as const
 export type CostType = (typeof CostType)[keyof typeof CostType]
 
-/** SPEC 4.3 が定める売上の初期小項目。 */
+/** 仕様が定める売上の初期小項目。 */
 export const DEFAULT_SALES_CATEGORIES = ['保守', '保守外（追加開発）'] as const
 
 /** 画面上の売上行。 */
@@ -38,7 +38,7 @@ export type SalesDraft = {
 /**
  * 画面上のメンバー稼働行。メンバー1人につき必ず1行できる。
  *
- * ★ 稼働のないメンバーの行も作る。SPEC 4.3 の「未入力メンバーが存在する場合の
+ * ★ 稼働のないメンバーの行も作る。「未入力メンバーが存在する場合の
  *   アラート表示」は、全メンバーの行があって初めて数えられる。
  */
 export type CostDraft = {
@@ -86,7 +86,7 @@ type PerformanceSnapshot = {
 }
 
 /**
- * 実績入力画面のデータ読込（SPEC 4.3）。
+ * 実績入力画面のデータ読込。
  *
  * ★ useState ではなくローカル ref を使う。useMembers / useProjects と同じ判断で、
  *   ページ遷移のたびに作り直されるほうが古いキャッシュが残らず素直に動く。
@@ -126,7 +126,7 @@ export const usePerformance = () => {
 
   const snapshot = ref<PerformanceSnapshot>(takeSnapshot(emptyForm()))
 
-  /** 売上の初期2行（SPEC 4.3）。実績が1件もない月に出す。 */
+  /** 売上の初期2行。実績が1件もない月に出す。 */
   const buildDefaultSales = (): SalesDraft[] =>
     DEFAULT_SALES_CATEGORIES.map((category) => ({
       key: crypto.randomUUID(),
@@ -210,7 +210,7 @@ export const usePerformance = () => {
    * ★ 3テーブルを Promise.all で並列に取る。直列に await すると往復が
    *   3回積み上がり、プルダウンを切り替えるたびの待ちがそのまま3倍になる。
    *   索引 idx_t_sales_fy_month_project / idx_t_costs_fy_month_project は
-   *   Task 2 の時点で「実績入力画面の読込（Task 8）」のコメント付きで用意済み。
+   *   DDL 側に「実績入力画面の読込」のコメント付きで用意済み。
    *
    * ★ t_status は maybeSingle()。UNIQUE (fiscal_year, month, project_id) が
    *   あるので0行か1行にしかならない。single() だと0行でエラーになる。
@@ -246,7 +246,7 @@ export const usePerformance = () => {
     const management = pickManagement(costRecords)
 
     form.value = {
-      // 実績が1件もない月は SPEC 4.3 の初期2行を出す。
+      // 実績が1件もない月は仕様どおり初期2行を出す。
       sales:
         salesRecords.length > 0
           ? salesRecords.map((record) => ({
@@ -280,7 +280,7 @@ export const usePerformance = () => {
   const saveErrorMessage = ref<string | null>(null)
 
   /**
-   * 入力内容を保存する（SPEC 4.3）。成功したら true。
+   * 入力内容を保存する。成功したら true。
    *
    * 洗い替えではなく差分で当てる。行を作り直さないので id と created_at が残り、
    * 触っていない行の updated_at も動かないため「誰がいつ何を変えたか」が追える。
@@ -322,7 +322,7 @@ export const usePerformance = () => {
       )
       const removedSalesIds = [...before.sales.keys()].filter((id) => !survivingSalesIds.has(id))
 
-      // 稼働が 0 に戻った行は残さない。SPEC 4.3 の「未入力メンバーは保存対象外」。
+      // 稼働が 0 に戻った行は残さない。未入力メンバーは保存対象外という仕様。
       const removedCostIds = current.costs
         .filter((draft) => draft.id !== null && draft.work_hours === 0)
         .map((draft) => draft.id as number)

@@ -6,7 +6,7 @@ import type { MemberRowInput } from '~/lib/schemas/member'
 export type Member = Database['public']['Tables']['m_users']['Row']
 
 /**
- * 編集画面が持つ1行（Task 6）。
+ * 編集画面が持つ1行。
  *
  * ★ id は「まだ採番されていない新規行」を null で表す。0 や -1 で代用すると
  *   既存行の id と混ざり、UPDATE すべき行を INSERT してしまう。
@@ -21,11 +21,11 @@ export type MemberDraft = MemberRowInput & {
 }
 
 /**
- * メンバーマスタ（m_users）の一覧を取得して保持する（SPEC 4.4）。
+ * メンバーマスタ（m_users）の一覧を取得して保持する。
  *
  * ★ useState ではなくローカル ref を使う。useAppUser が useState なのは
  *   全ページ常駐のサイドバーが同じ状態を見るためで、一覧画面には当てはまらない。
- *   むしろ Task 6 の編集後に古いキャッシュが残るほうが害になる。
+ *   むしろ編集画面での保存後に古いキャッシュが残るほうが害になる。
  *   ページ遷移で作り直されるほうが、常に最新が出るぶん素直に動く。
  */
 export const useMembers = () => {
@@ -39,8 +39,8 @@ export const useMembers = () => {
    * m_users を全件取得する。
    *
    * ★ order('id') は省略しない。PostgREST は ORDER BY がないと行順を保証せず、
-   *   Task 6 で UPDATE した行だけが末尾に飛ぶ挙動になりうる。
-   *   ID 昇順は登録順であり、SPEC 4.4 の「行追加は末尾」とも整合する。
+   *   編集画面で UPDATE した行だけが末尾に飛ぶ挙動になりうる。
+   *   ID 昇順は登録順であり、「行追加は末尾」という仕様とも整合する。
    *
    * ★ RLS（m_users_select_app_user）により未登録ユーザーには0件しか返らないが、
    *   この画面に来た時点で middleware/auth.global.ts が AUTHORIZED を
@@ -67,16 +67,14 @@ export const useMembers = () => {
     status.value = FetchStatus.SUCCESS
   }
 
-  // --- 以下は編集画面（Task 6）で使う ---------------------------------
-
   const isSaving = ref(false)
   const saveErrorMessage = ref<string | null>(null)
 
   /**
-   * このメンバーに費用実績（t_costs）があるかを判定する（SPEC 4.4 の削除制御）。
+   * このメンバーに費用実績（t_costs）があるかを判定する。削除制御に使う。
    *
    * ★ head: true で本体を転送しない。存在するかどうかしか要らないため。
-   *   索引 idx_t_costs_user_id が Task 2 の時点で用意されている。
+   *   索引 idx_t_costs_user_id が DDL 側に用意されている。
    *
    * ★ 失敗したら true（実績あり）に倒す。判定できないまま削除を通すと、
    *   実績のあるメンバーを消そうとして DB の FK 違反にぶつかり、
@@ -112,7 +110,7 @@ export const useMembers = () => {
     })
 
   /**
-   * 編集内容を一括保存する（Task 6）。成功したら true。
+   * 編集内容を一括保存する。成功したら true。
    *
    * ★ 実行順は DELETE → UPDATE → INSERT。削除を先にするのは、消したメンバーの
    *   メールアドレスを別の行に付け替えるケースがあるため。順序を変えると

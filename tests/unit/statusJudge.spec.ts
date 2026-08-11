@@ -7,7 +7,7 @@ import {
 } from '~/lib/statusJudge'
 
 describe('judgeStatus', () => {
-  describe('SPEC 6.2 の判定表', () => {
+  describe('判定表', () => {
     it('黒字 × 前月比プラス → 成長', () => {
       expect(judgeStatus(100, 50)).toBe(ProjectStatus.GROWTH)
     })
@@ -88,7 +88,7 @@ describe('calcMonthOverMonthDiff', () => {
 })
 
 describe('PROJECT_STATUS_META', () => {
-  it('SPEC 6.2 のラベルと配色を持つ', () => {
+  it('仕様どおりのラベルと配色を持つ', () => {
     expect(PROJECT_STATUS_META[ProjectStatus.GROWTH]).toEqual({
       label: '成長',
       color: '#22C55E',

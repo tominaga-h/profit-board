@@ -7,7 +7,11 @@ export type FiscalYear = Pick<
   'id' | 'year'
 >
 
-/** 年度マスタをページ単位で取得する。 */
+/**
+ * 年度マスタを取得する。
+ *
+ * 他の composable と違い onMounted を内部に持つので、呼び出し側は fetch を呼ばなくてよい。
+ */
 export const useFiscalYears = () => {
   const supabase = useSupabaseClient<Database>()
 

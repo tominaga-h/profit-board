@@ -3,7 +3,7 @@ import { toRowErrors } from '~/lib/schemas/rowErrors'
 import type { RowErrors } from '~/lib/schemas/rowErrors'
 
 /**
- * メンバー1行の入力検証（SPEC 5.1 の m_users DDL に対応）。
+ * メンバー1行の入力検証。m_users の DDL に対応する。
  *
  * ★ 上限値は DDL 由来。family_name / first_name は VARCHAR(50)、
  *   email は VARCHAR(255)、unit_price は NUMERIC(12,0)。ここで止めないと
@@ -19,8 +19,7 @@ import type { RowErrors } from '~/lib/schemas/rowErrors'
  *   指示している以上、入力値を勝手に変換するほうが危険。
  *
  * ★ メールのドメイン制限は入れない。デザイン画像の注意書きには
- *   「社内ドメインのみ登録可」とあるが、SPEC にも DDL にも根拠がない
- *   （plan.md A1「デザイン生成時に付加された要素は採用しない」と同じ判断）。
+ *   「社内ドメインのみ登録可」とあるが、仕様にも DDL にも根拠がない。
  */
 export const memberRowSchema = z.object({
   family_name: z

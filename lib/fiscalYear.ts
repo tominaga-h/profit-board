@@ -80,7 +80,7 @@ export const fiscalMonthIndex = (
  * 年度内の前月を返す。年度初月には前月がないので null。
  *
  * ★ 年度初月の前月は暦の上では前年度の末月だが、ここでは null を返す。
- *   SPEC 6.2 が「前月データが存在しない場合（年度初月等）」を独立した
+ *   仕様が「前月データが存在しない場合（年度初月等）」を独立した
  *   判定規則として定めているため、年度をまたいだ比較はしない。
  */
 export const previousFiscalMonth = (
@@ -136,7 +136,7 @@ export type YoYComparison = {
 }
 
 /**
- * 前年同期比の比較対象を組み立てる（plan.md A6）。
+ * 前年同期比の比較対象を組み立てる。
  *
  * 選択年度で実績がある月だけを対象にし、前年度からも「同じ月」だけを足す。
  * 単純に年度合計どうしを比べると、期の途中（例: 7月時点）に前年度の12ヶ月
@@ -147,7 +147,7 @@ export type YoYComparison = {
  *   当年度の実績が比較から消え、数字が小さく出てしまう。
  *
  * ★ 前年度に対象月のデータが1件もなければ null を返す。
- *   SPEC 4.1 の「過去データが存在しない場合は『-』を表示」に対応する。
+ *   「過去データが存在しない場合は『-』を表示」という仕様に対応する。
  */
 export const buildYoYComparison = (
   currentValues: MonthlyValues,
@@ -167,7 +167,7 @@ export const buildYoYComparison = (
 }
 
 /**
- * 前年同期比の増減率（%）。売上・費用・営業利益のKPIカードで使う（SPEC 4.1）。
+ * 前年同期比の増減率（%）。売上・費用・営業利益のKPIカードで使う。
  *
  * ★ 前年が0以下なら null を返す。0 で割ると Infinity になり画面に
  *   「Infinity%」が出る。前年が負（赤字）の場合も増減率の符号が直感と逆に
@@ -180,10 +180,10 @@ export const calcYoYRate = (comparison: YoYComparison | null): number | null => 
 }
 
 /**
- * 前年同期比のポイント差（pt）。利益率カードで使う（SPEC 4.1）。
+ * 前年同期比のポイント差（pt）。利益率カードで使う。
  *
  * 率どうしの比較は「%の増減率」ではなく「何ポイント動いたか」で表す。
- * SPEC 4.1 が利益率だけ pt と定めているのはこのため。単純な引き算になる。
+ * 仕様が利益率だけ pt と定めているのはこのため。単純な引き算になる。
  */
 export const calcYoYPointDiff = (
   currentRate: number,

@@ -13,7 +13,7 @@ const navItems: NavItem[] = [
   { label: 'プロジェクト一覧', to: '/projects', icon: 'i-lucide-folder-kanban' },
   { label: '実績入力', to: '/performance/input', icon: 'i-lucide-pencil-line' },
   { label: 'メンバー', to: '/members', icon: 'i-lucide-users' },
-  // plan.md A7: SPEC に機能要件がないためスコープ外。非活性で表示のみ。
+  // 機能要件がないためスコープ外。非活性で表示のみ。
   { label: 'レポート', icon: 'i-lucide-file-text' },
   { label: '設定', icon: 'i-lucide-settings' },
 ]
@@ -23,7 +23,7 @@ const route = useRoute()
 /** 判定の実体と、前方一致にしている理由は lib/navActive.ts を参照。 */
 const isActive = (to?: string) => isNavItemActive(route.path, to)
 
-// plan.md A1 により部門は表示しない。キャプションにはメールを出す。
+// 部門は表示しない（m_users に列がない）。キャプションにはメールを出す。
 const { appUser, displayName, authEmail, signOut } = useAppUser()
 
 /** アバターの一文字。姓の先頭を使う（日本語想定なので大文字化はしない）。 */

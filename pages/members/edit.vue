@@ -15,7 +15,7 @@ const {
   saveMembers,
 } = useMembers()
 
-// 自分自身の行を判定するために使う（後述の canDelete）。
+// 自分自身の行を判定するために使う。
 const { appUser } = useAppUser()
 
 /** 編集中の行。取得結果をコピーして持つ（members は再取得の基準として残す）。 */
@@ -100,7 +100,7 @@ const addRow = () => {
 /**
  * ログイン中の自分自身は削除させない。
  *
- * ★ SPEC には規定がないが、RLS は自己削除を許してしまう。自分を消すと
+ * ★ 仕様には規定がないが、RLS は自己削除を許してしまう。自分を消すと
  *   is_app_user() が false になって即座にアプリから締め出され、
  *   復旧には Supabase の SQL Editor から手動で INSERT し直すしかない。
  *   しかも実績がなければ FK にも引っかからず、するっと成功してしまう。
@@ -120,7 +120,7 @@ const removeRow = async (draft: MemberDraft) => {
 
   if (!canDelete(draft)) return
 
-  // SPEC 4.4: 実績があるメンバーはゴミ箱押下の時点で拒否する。
+  // 実績があるメンバーはゴミ箱押下の時点で拒否する。
   checkingKey.value = draft.key
   const hasCosts = await hasCostRecords(draft.id)
   checkingKey.value = null
@@ -223,7 +223,7 @@ const inputClass = (hasError: boolean) => [
       </template>
     </PageHeader>
 
-    <!-- 注意書き。デザインにある「社内ドメインのみ登録可」は SPEC に根拠がないため入れない。 -->
+    <!-- 注意書き。デザインにある「社内ドメインのみ登録可」は仕様に根拠がないため入れない。 -->
     <div class="mb-4 flex items-center justify-between gap-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
       <div class="flex items-start gap-2 text-sm text-slate-600">
         <UIcon name="i-lucide-info" class="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
@@ -244,7 +244,7 @@ const inputClass = (hasError: boolean) => [
     <UAlert v-if="saveErrorMessage" color="red" variant="subtle" icon="i-lucide-circle-alert" class="mb-4"
       :description="saveErrorMessage" />
 
-    <!-- 削除拒否（SPEC 4.4） -->
+    <!-- 削除拒否 -->
     <UAlert v-if="deleteErrorMessage" color="red" variant="subtle" icon="i-lucide-circle-alert" class="mb-4"
       :description="deleteErrorMessage" />
 

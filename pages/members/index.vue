@@ -3,7 +3,7 @@ import { FetchStatus } from '~/lib/fetchStatus'
 import { formatYen } from '~/lib/format'
 
 // middleware/auth.global.ts が全ルートに掛かるため、definePageMeta での
-// 追加ガードは不要（SPEC 3.1 の判定はミドルウェアに一本化されている）。
+// 追加ガードは不要（認証判定はミドルウェアに一本化されている）。
 const { members, status, errorMessage, fetchMembers } = useMembers()
 
 onMounted(fetchMembers)
@@ -14,7 +14,7 @@ onMounted(fetchMembers)
     <PageHeader title="メンバー一覧" subtitle="登録メンバーと単価を確認します">
       <template #actions>
         <!--
-          SPEC 4.4「右上の『編集する』ボタンで編集画面へ遷移」。
+          一覧から編集画面への導線。
           to を渡すと UButton は NuxtLink になるので、右クリックで新規タブも開ける。
           色は app.config.ts の primary: 'blue' が既定で効くため指定しない。
         -->
@@ -49,7 +49,7 @@ onMounted(fetchMembers)
         <p class="mt-1 text-xs text-slate-400">「編集する」からメンバーを追加してください。</p>
       </div>
 
-      <!-- 一覧（SPEC 4.4: ID・姓・名・メールアドレス・単価） -->
+      <!-- 一覧（ID・姓・名・メールアドレス・単価） -->
       <table v-else class="min-w-full divide-y divide-slate-200">
         <thead class="bg-slate-50">
           <tr>
@@ -69,7 +69,7 @@ onMounted(fetchMembers)
           <tr v-for="member in members" :key="member.id" class="hover:bg-slate-50">
             <!--
               ID は SERIAL の値をそのまま出す。デザイン画像の 001 形式（ゼロ埋め3桁）は
-              生成時に付加されたもので、SPEC 4.4 にも 5.1 のDDLにも根拠がない。
+              生成時に付加されたもので、仕様にも DDL にも根拠がない。
             -->
             <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-400">{{ member.id }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">

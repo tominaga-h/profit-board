@@ -3,7 +3,7 @@ import { toRowErrors } from '~/lib/schemas/rowErrors'
 import type { RowErrors } from '~/lib/schemas/rowErrors'
 
 /**
- * プロジェクト1行の入力検証（SPEC 5.1 の m_projects DDL に対応）。
+ * プロジェクト1行の入力検証。m_projects の DDL に対応する。
  *
  * ★ 上限は DDL 由来で service_name / company_name とも VARCHAR(255)。
  *   メンバーの姓名（VARCHAR(50)）より広いので、member.ts を写すときに
@@ -17,7 +17,7 @@ import type { RowErrors } from '~/lib/schemas/rowErrors'
  *
  * ★ .trim() は検証と同時に値を変換する。保存されるのは trim 済みの値。
  *   前後の空白が残ると、見た目が同じで別物として扱われる行ができ、
- *   一覧（Task 11）やダッシュボード（Task 14）でどちらか判別できなくなる。
+ *   一覧やダッシュボードでどちらか判別できなくなる。
  */
 export const projectRowSchema = z.object({
   service_name: z

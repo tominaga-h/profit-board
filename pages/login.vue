@@ -9,7 +9,7 @@ const isSigningIn = ref(false)
 const errorMessage = ref<string | null>(null)
 
 /**
- * 未登録アカウントの後始末（SPEC 3.1）。
+ * 未登録アカウントの後始末。
  *
  * ミドルウェアは ?error=unregistered を付けてここへ飛ばすだけで、
  * サインアウトはこの画面で行う。ミドルウェア内で await signOut() すると

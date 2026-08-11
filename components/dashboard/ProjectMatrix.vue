@@ -28,7 +28,7 @@ const columns = computed(() =>
 /**
  * セル1つ分の表示文字列。
  *
- * ★ 未入力の月は Map にキーがない。0円と区別して「-」にする（SPEC 4.1）。
+ * ★ 未入力の月は Map にキーがない。0円と区別して「-」にする。
  */
 const formatCell = (row: MatrixRow, month: number, metric: MetricKey): string => {
   const summary = row.byMonth.get(month)

@@ -80,7 +80,7 @@ describe('costRowSchema', () => {
 
   it('稼働時間0は通る（未入力メンバーの正当な状態）', () => {
     // ★ 0 は「この月はこのプロジェクトへ稼働しなかった」という正当な状態。
-    //   Task 10 では保存対象から外れる（t_costs に行を作らない）。
+    //   保存時には対象から外れる（t_costs に行を作らない）。
     expect(costRowSchema.safeParse({ ...validRow, work_hours: 0 }).success).toBe(true)
   })
 

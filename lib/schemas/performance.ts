@@ -3,7 +3,7 @@ import { toRowErrors } from '~/lib/schemas/rowErrors'
 import type { RowErrors } from '~/lib/schemas/rowErrors'
 
 /**
- * 売上行の入力検証（SPEC 5.1 の t_sales DDL に対応）。
+ * 売上行の入力検証。t_sales の DDL に対応する。
  *
  * ★ category_small は VARCHAR(100)。メンバーの姓名（50）や
  *   プロジェクト名（255）とも違うので、他のスキーマから写さないこと。
@@ -25,14 +25,14 @@ export const salesRowSchema = z.object({
 })
 
 /**
- * 稼働行の入力検証（SPEC 5.1 の t_costs DDL に対応）。
+ * 稼働行の入力検証。t_costs の DDL に対応する。
  *
  * ★ work_hours は NUMERIC(6,2)。整数部4桁・小数2桁なので上限は 9999.99。
  *   小数第3位以下を入れると DB 側で丸められ、画面の人日計算と保存値が食い違う。
  *
  * ★ 稼働時間の「未入力」は 0 として扱うので、min(0) は空欄を弾かない。
  *   0 は「このメンバーはこの月にこのプロジェクトへ稼働しなかった」という
- *   正当な状態で、Task 10 では保存対象から外れる（行を作らない）。
+ *   正当な状態で、保存時には対象から外れる（行を作らない）。
  */
 export const costRowSchema = z.object({
   work_hours: z
@@ -55,7 +55,7 @@ export const costRowSchema = z.object({
 /**
  * 管理費行の入力検証。
  *
- * ★ 稼働時間・単価を持たず金額だけを直接入力する行（SPEC 4.3「管理費」）。
+ * ★ 稼働時間・単価を持たず金額だけを直接入力する行（管理費）。
  *   DB 上は user_id が NULL の t_costs 行として保存される。
  */
 export const managementCostRowSchema = z.object({

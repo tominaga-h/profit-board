@@ -186,7 +186,7 @@ watch([selectedYear, selectedMonth, selectedProject], async () => {
   )
 })
 
-// --- リアルタイム計算（SPEC 4.3・6.1） -------------------------------
+// --- リアルタイム計算 -------------------------------
 
 /** 稼働行の金額。丸めた人日 × 単価。 */
 const laborAmount = (draft: CostDraft): number =>
@@ -205,7 +205,7 @@ const totalCosts = computed(() => {
 const summary = computed(() => summarize(totalSales.value, totalCosts.value))
 
 /**
- * 稼働時間が未入力のメンバー数（SPEC 4.3 のアラート）。
+ * 稼働時間が未入力のメンバー数。アラート表示に使う。
  *
  * 0 と NaN（入力欄を空にした状態）の両方を未入力として数える。
  * 管理費は人ではないので含めない。
@@ -214,7 +214,7 @@ const unfilledCount = computed(
   () => form.value.costs.filter((draft) => !(draft.work_hours > 0)).length,
 )
 
-// --- 入力操作（Task 9） ---------------------------------------------
+// --- 入力操作 ---------------------------------------------
 
 const addSalesRow = () => {
   form.value.sales.push({ key: crypto.randomUUID(), id: null, category_small: '', amount: 0 })
@@ -228,9 +228,7 @@ const removeSalesRow = (draft: SalesDraft) => {
 /**
  * 全行を検証する。問題がなければ true。
  *
- * ★ 呼び出し口は2つ。入力欄の blur（下記 validateLater）と、
- *   Task 10 で足す保存ボタン。blur で走らせているのは、保存が未実装の
- *   いまでも入力の妥当性がその場で分かるようにするため。
+ * ★ 呼び出し口は2つ。入力欄の blur（下記 validateLater）と保存ボタン。
  *   検証を保存時だけにすると、全部入力し終えてから初めて赤が出る。
  */
 const validate = (): boolean => {
@@ -340,7 +338,7 @@ const lastUpdated = computed(() => {
   <div>
     <!--
       パンくず。デザイン画像の「PRJ-2025-008」形式のコードは採用しない
-      （m_projects にコード列がなく、SPEC 5.1 のDDLにも根拠がない）。
+      （m_projects にコード列がなく、DDL にも根拠がない）。
     -->
     <p v-if="isReady" class="mb-2 text-xs text-slate-400">
       実績入力 › {{ selectedYear }}年度 {{ selectedMonth }}月 › {{ selectedProjectName }}
@@ -394,7 +392,7 @@ const lastUpdated = computed(() => {
           </UBadge>
         </div>
 
-        <!-- リアルタイムサマリー（SPEC 4.3） -->
+        <!-- リアルタイムサマリー -->
         <div v-if="isReady" class="flex items-end gap-6">
           <div class="text-right">
             <p class="text-xs text-slate-500">売上</p>
@@ -561,7 +559,7 @@ const lastUpdated = computed(() => {
               </p>
             </td>
 
-            <!-- 稼働人日は自動計算（SPEC 6.1-①）。編集させない。 -->
+            <!-- 稼働人日は自動計算。編集させない。 -->
             <td class="px-3 py-3">
               <p :class="readonlyClass">{{ formatWorkDays(draft.work_hours) }}</p>
             </td>
@@ -572,7 +570,7 @@ const lastUpdated = computed(() => {
                   ¥
                 </span>
                 <!--
-                  単価はマスタ値を初期表示するが上書きできる（SPEC 4.3）。
+                  単価はマスタ値を初期表示するが上書きできる。
                   入力値は t_costs.unit_price に保存されるので、
                   あとからマスタ単価が変わっても過去月の金額は動かない。
                 -->
@@ -587,7 +585,7 @@ const lastUpdated = computed(() => {
               </p>
             </td>
 
-            <!-- 金額は自動計算（SPEC 6.1-②）。丸めた人日 × 単価。 -->
+            <!-- 金額は自動計算。丸めた人日 × 単価。 -->
             <td class="px-3 py-3">
               <p :class="readonlyClass">{{ formatYen(laborAmount(draft)) }}</p>
             </td>
@@ -629,7 +627,7 @@ const lastUpdated = computed(() => {
             </td>
           </tr>
 
-          <!-- 備考（SPEC 4.3） -->
+          <!-- 備考 -->
           <tr>
             <th scope="row" class="px-6 py-4 text-left text-sm font-semibold text-slate-900">
               備考

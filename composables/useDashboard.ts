@@ -3,7 +3,7 @@ import { FetchStatus } from '~/lib/fetchStatus'
 import { buildDashboardData, type DashboardData } from '~/lib/dashboard'
 
 /**
- * 年度全体の集計を取得する（SPEC 4.1）。
+ * 年度全体の集計を取得する。
  *
  * ★ プロジェクト一覧も含めてここで取る。useProjects と併用すると status が2系統になり、
  *   画面側で「どちらも成功したか」を組み合わせる分岐が増える。集計の材料は

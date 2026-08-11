@@ -1,5 +1,5 @@
 /**
- * 全ルート共通の認証ガード（SPEC 3.1 / 3.2）。
+ * 全ルート共通の認証ガード。
  *
  * ■ なぜ自前で書くか
  *   @nuxtjs/supabase の内蔵リダイレクト（redirect: true）は「セッションの有無」しか見ない。
@@ -38,13 +38,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // --- セッションあり ---------------------------------------------------
-  // m_users との照合結果が未取得なら解決する。
   // ページ遷移のたびに問い合わせると無駄なので、解決済みなら再利用する。
   if (status.value === AppUserStatus.IDLE || (status.value !== AppUserStatus.LOADING && !appUser.value)) {
     await resolve()
   }
 
-  // 未登録アカウント（SPEC 3.1: ログイン不可）
+  // 未登録アカウント（ログイン不可）
   if (status.value !== AppUserStatus.AUTHORIZED) {
     // 既に /login にいるなら遷移不要。ここで navigateTo するとループする。
     if (to.path === '/login') return

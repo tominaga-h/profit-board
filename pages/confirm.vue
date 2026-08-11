@@ -24,7 +24,6 @@ const errorMessage = ref<string | null>(null)
 const SESSION_TIMEOUT_MS = 10_000
 
 onMounted(async () => {
-  // すでにセッションがあれば即座に進む。無ければ確立を待つ。
   if (!session.value) {
     const established = await new Promise<boolean>((resolveWait) => {
       const timer = setTimeout(() => {
@@ -54,7 +53,7 @@ onMounted(async () => {
     }
   }
 
-  // m_users と照合してから行き先を決める（SPEC 3.1）。
+  // m_users と照合してから行き先を決める。
   const status = await resolve()
 
   // replace: true で履歴を残さない。戻るボタンで ?code= 付きの URL に

@@ -16,14 +16,14 @@ const YEN_FORMATTER = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 
 /**
  * 金額を「¥65,000」形式にする。
  *
- * 単位は円で固定する（plan.md A4 / SPEC 4.1「単位：円固定」）。
+ * 単位は円で固定する（仕様で「単位：円固定」と定められている）。
  * デザイン画像の千円表記は採用しない。
  *
  * ★ 負値は「-¥1,000」と符号を先頭に置く。Intl に丸投げすると「¥-1,000」に
- *   なる場合があり、赤字が並ぶ一覧（Task 11）でマイナスが記号に埋もれる。
+ *   なる場合があり、赤字が並ぶ一覧でマイナスが記号に埋もれる。
  *
  * ★ 小数は整数に丸める。DB の金額列は NUMERIC(12,0) なので本来小数は来ないが、
- *   Task 9 の未保存フォーム値のように丸め前の値が渡る経路があるため、
+ *   実績入力画面の未保存フォーム値のように丸め前の値が渡る経路があるため、
  *   表示側でも必ず整数に落として桁ズレを防ぐ。
  */
 export const formatYen = (value: number): string => {
@@ -34,7 +34,7 @@ export const formatYen = (value: number): string => {
 /**
  * 値がないことを表す記号。
  *
- * 前年度の実績がない場合の表示（SPEC 4.1）と、マトリクスの未入力月で同じものを使う。
+ * 前年度の実績がない場合の表示と、マトリクスの未入力月で同じものを使う。
  * どちらも「0ではなくデータがない」を意味するので、字面を1ヶ所で決める。
  */
 export const NO_VALUE = '-'
@@ -55,7 +55,7 @@ export const formatSignedPercent = (value: number | null): string =>
 /**
  * 率の増減を「+1.8pt」形式にする。
  *
- * 利益率どうしの比較は増減率（%）ではなくポイント差で表す（SPEC 4.1）。
+ * 利益率どうしの比較は増減率（%）ではなくポイント差で表す。
  */
 export const formatPointDiff = (value: number | null): string =>
   value === null ? NO_VALUE : `${value >= 0 ? '+' : '-'}${Math.abs(value).toFixed(1)}pt`
