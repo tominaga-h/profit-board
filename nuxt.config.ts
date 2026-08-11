@@ -1,6 +1,8 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-09',
 
+  future: { compatibilityVersion: 4 },
+
   // SPEC 2章: SPAモード
   ssr: false,
 
@@ -8,9 +10,16 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    // Task 4 で有効化。build 時に vue-tsc が走り、型エラーがあればビルドが失敗する。
+    // build 時に vue-tsc が走り、型エラーがあればビルドが失敗する。
     // tests/ も .nuxt/tsconfig.json の include（../**/*）に入るため対象になる。
     typeCheck: true,
+    tsConfig: {
+      compilerOptions: {
+        // compatibilityVersion: 4 は既定でこれを有効化するが、
+        // 既存コードの型エラー修正はこのリファクタの範囲外のため v3 の挙動を維持する。
+        noUncheckedIndexedAccess: false,
+      },
+    },
   },
 
   // @nuxtjs/tailwindcss・@nuxt/icon・@nuxtjs/color-mode は
@@ -24,6 +33,11 @@ export default defineNuxtConfig({
   },
 
   supabase: {
+    // 既定値 '~/types/database.types.ts' は srcDir（app/）基準になり、
+    // ルート直下の types/database.types.ts を見失って Database = unknown に
+    // フォールバックしてしまうため、~~（プロジェクトルート）基準で明示する。
+    types: '~~/types/database.types.ts',
+
     // url / key は .env の SUPABASE_URL / SUPABASE_KEY から読まれる
     // （モジュールは NUXT_PUBLIC_SUPABASE_* を優先し、無ければこちらにフォールバックする）。
 

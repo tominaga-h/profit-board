@@ -1,4 +1,4 @@
-import type { Database } from '~/types/database.types'
+import type { Database } from '~~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 import type { Member } from '~/composables/useMembers'
 

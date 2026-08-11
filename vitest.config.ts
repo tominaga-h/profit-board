@@ -11,13 +11,13 @@ import { defineConfig } from 'vitest/config'
  *   コンポーネントのテストが必要になったら、その時点で足す。
  */
 /**
- * プロジェクトルートの絶対パス。
+ * srcDir（app/）の絶対パス。
  *
  * ★ new URL(...).pathname ではなく fileURLToPath を使う。前者は Windows で
  *   `/C:/...` という不正なパスを返すため、file: URL からパスへの変換は
  *   必ずこの関数を通す。
  */
-const projectRoot = fileURLToPath(new URL('./', import.meta.url))
+const srcDir = fileURLToPath(new URL('./app', import.meta.url))
 
 export default defineConfig({
   resolve: {
@@ -25,8 +25,10 @@ export default defineConfig({
       // `~/` の解決。tsconfig の paths は .nuxt/tsconfig.json 側にあるが、
       // .nuxt は生成物で gitignore されているため、未生成の環境では引けない。
       // クリーンチェックアウトでもテストが走るよう、ここに直接書く。
-      '~': projectRoot,
-      '@': projectRoot,
+      // compatibilityVersion: 4 で srcDir が app/ になったため、Nuxt 実行時の
+      // 解決先（app/ 基準）に合わせる。
+      '~': srcDir,
+      '@': srcDir,
     },
   },
   test: {
@@ -40,9 +42,9 @@ export default defineConfig({
 
     coverage: {
       provider: 'v8',
-      // 計測対象は lib/ の計算ロジックだけ。
+      // 計測対象は app/lib/ の計算ロジックだけ。
       // composables/ は Supabase クライアント等に依存し単体テストの対象外。
-      include: ['lib/**/*.ts'],
+      include: ['app/lib/**/*.ts'],
       reporter: ['text', 'html'],
     },
   },

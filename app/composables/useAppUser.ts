@@ -1,4 +1,4 @@
-import type { Database } from '~/types/database.types'
+import type { Database } from '~~/types/database.types'
 import type { FetchError } from 'ofetch'
 
 /** m_users の1行（アプリ利用が許可されたメンバー） */
