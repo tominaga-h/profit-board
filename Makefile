@@ -67,10 +67,6 @@ ci: ## package-lock.json どおりに依存をクリーンインストールす�
 build: ## 本番ビルドする（Nitro サーバ向け）
 	$(RUN) npm run build
 
-.PHONY: generate
-generate: ## 静的サイトを生成する（.output/public へ出力）
-	$(RUN) npm run generate
-
 .PHONY: preview
 preview: ## ビルド結果をプレビューする
 	$(COMPOSE) run --rm --no-deps --service-ports $(SERVICE) npm run preview
@@ -148,6 +144,8 @@ db-drizzle-pull: ## リモートDBからDrizzleスキーマ差分を確認する
 
 # types/database.types.ts はリモートスキーマからの自動生成物。
 # マイグレーションを追加・変更したら必ず流し直す（手で書くとスキーマとズレる）。
+# Drizzle 移行後は DB アクセスに使わない。composables/*.ts が Row 型（AppUser / Member /
+# Project / SalesRecord 等）の導出元として参照しているため、クライアント側の型定義としてのみ残存する。
 .PHONY: db-types
 db-types: ## リモートスキーマから types/database.types.ts を再生成する
 	@$(ENV_SH) supabase gen types typescript \
@@ -160,6 +158,10 @@ db-types: ## リモートスキーマから types/database.types.ts を再生成
 		echo '//'; \
 		echo '// ★ 手で編集しないこと。スキーマを変えたら再生成する。'; \
 		echo '//   マイグレーション（supabase/migrations/）が唯一の正であり、このファイルはその写像。'; \
+		echo '//'; \
+		echo '// ★ Drizzle 移行後、DB アクセスにはこの型を使わない（server/api/** は server/db/schema.ts を使う）。'; \
+		echo '//   composables/*.ts が API レスポンスの Row 型（AppUser / Member / Project 等）の'; \
+		echo '//   導出元としてのみ参照しているため、クライアント側の型定義として残存させている。'; \
 		echo ''; \
 		cat /tmp/pb-db-types.ts; \
 	} > types/database.types.ts

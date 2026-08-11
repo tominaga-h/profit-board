@@ -482,14 +482,35 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] `make build` が成功し、`.output` に serverless API が含まれる
-- [ ] `make generate` が実行できない（削除またはガードで exit 1）
-- [ ] SETUP.md 8章と `.env.example` がプラン 10章・13.1 と整合している
+- [x] `make build` が成功し、`.output` に serverless API が含まれる
+- [x] `make generate` が実行できない（削除またはガードで exit 1）
+- [x] SETUP.md 8章と `.env.example` がプラン 10章・13.1 と整合している
 
 **検証:** `make build` 成功。ドキュメントレビュー。
 **依存:** Task 13
 **触るファイル:** `types/database.types.ts`（削除候補）, `Makefile`, `docs/SETUP.md`, `.env.example`
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実施）:**
+>
+> - `types/database.types.ts` は削除せず残置。`composables/useAppUser.ts` / `useFiscalYears.ts` /
+>   `usePerformance.ts` / `useProjects.ts` / `useMembers.ts` の5箇所が `Database` 型を
+>   `AppUser` / `Member` / `Project` / `SalesRecord` / `CostRecord` / `StatusRecord` 等の
+>   Row 型の導出元として参照している（`useAppUser.ts` は加えて Auth 用途の
+>   `useSupabaseClient<Database>()` の型引数としても使用）。DB アクセスには使っていないが
+>   クライアント側の型導出元として現役のため退役を見送った。Makefile の `db-types` ターゲットの
+>   コメントと生成物ヘッダーに、この位置づけ（DB アクセスには使わない／型導出元としてのみ残存）を明記した
+> - `generate` は当初ガード化（exit 1 + 理由表示）で実装したが、Hunk レビュー指摘
+>   「使用禁止なら削除して」により **Makefile ターゲット・`package.json` スクリプトとも削除**。
+>   AGENTS.md の make コマンド一覧と SETUP.md 8.1 の記述も削除前提に整合済み
+> - `docs/SETUP.md` 8章（Vercel デプロイ）を新規執筆。ビルドコマンド・`generate` 禁止理由・
+>   環境変数（`NUXT_DATABASE_URL` 新設、`SUPABASE_SERVICE_ROLE_KEY` / `DIRECT_DATABASE_URL` は
+>   設定禁止）・デプロイ後の確認項目を記載
+> - `.env.example` はプラン 13.1 の新旧対照と既に完全一致していたため変更なし（Task 2 で対応済み）
+> - 検証: `make build` 成功、`.output/server/` に全 API ルート（`dashboard` / `members` /
+>   `performance` / `projects` / `fiscal-years` / `me` 等）の serverless ハンドラを確認、
+>   `.output/public` は静的アセットのみで両者が分離。`make generate` は exit 1 で拒否を確認。
+>   `make test` 241 件通過。検証後 `make clean` でビルド成果物を削除済み
 
 ### ✅ チェックポイント5（完了）
 

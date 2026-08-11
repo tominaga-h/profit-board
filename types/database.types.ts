@@ -5,6 +5,10 @@
 //
 // ★ 手で編集しないこと。スキーマを変えたら再生成する。
 //   マイグレーション（supabase/migrations/）が唯一の正であり、このファイルはその写像。
+//
+// ★ Drizzle 移行後、DB アクセスにはこの型を使わない（server/api/** は server/db/schema.ts を使う）。
+//   composables/*.ts が API レスポンスの Row 型（AppUser / Member / Project 等）の
+//   導出元としてのみ参照しているため、クライアント側の型定義として残存させている。
 
 export type Json =
   | string
