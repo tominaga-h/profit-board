@@ -60,6 +60,17 @@ export const performanceQuerySchema = z.object({
 export type PerformanceQuery = z.infer<typeof performanceQuerySchema>
 
 /**
+ * GET /api/dashboard のクエリ検証。
+ *
+ * 範囲は performanceQuerySchema の fiscalYear と揃える（年度の妥当値は1ヶ所でしか決めない）。
+ */
+export const dashboardQuerySchema = z.object({
+  fiscalYear: z.coerce.number().int().min(1900).max(2999),
+})
+
+export type DashboardQuery = z.infer<typeof dashboardQuerySchema>
+
+/**
  * PUT /api/performance のリクエストボディ検証。
  *
  * DesiredPerformanceState（server/utils/performanceDiff.ts）と対応する形。

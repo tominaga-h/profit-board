@@ -360,14 +360,37 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] 移行前後で同一データに対するダッシュボード表示値（売上・費用・粗利・ステータス等）が一致する
-- [ ] クライアントへ全明細行が転送されていない（集計済み行のみ）
-- [ ] `buildDashboardData` と既存テストに変更がない
+- [x] 移行前後で同一データに対するダッシュボード表示値（売上・費用・粗利・ステータス等）が一致する（Playwright + DB SUM 照合で一致確認、ユーザー確認済み 2026-08-11）
+- [x] クライアントへ全明細行が転送されていない（`DashboardData` のみ返す）
+- [x] `buildDashboardData` と既存テストに変更がない（dashboard.spec.ts 27件無変更で通過）
 
 **検証:** 移行前の画面表示値を控えてから差し替え、目視比較。`make test` 通過。
 **依存:** Task 5（エラー契約）。Task 6〜9 と並行可
 **触るファイル:** `server/api/dashboard.get.ts`（新規）, `composables/useDashboard.ts`
 **規模:** M
+
+> **実施記録（2026-08-11、Sonnet サブエージェントで実装・検収済み）:**
+>
+> - SQL 側で `GROUP BY fiscal_year, month, project_id` + `SUM(amount)`（当年度・前年度の2年度分）。
+>   計算済み `DashboardData` だけ返し、明細行はブラウザに一切流さない
+> - **プラン 8.1 例示の `::int` キャストは不採用（妥当な独自判断）**: amount は NUMERIC(12,0)
+>   （1行最大約1兆）のため、集計値を `::int`（上限約21億）にキャストするとオーバーフローしうる。
+>   `coalesce(sum(...), 0)` を numeric の文字列のまま受け取り `Number()` で変換する方式にした。
+>   **SUM 等の集約結果に列定義の `mode: 'number'` は効かない**——集計 API 共通の罠として
+>   Task 11 でも同じ対応が必要
+> - `useDashboard` は `$fetch` で `DashboardData` を受けるだけに簡素化（契約不変）
+> - 検証: `make test` 241 件通過、`nuxi typecheck` エラーなし、未認証 curl 401
+>
+> **バグ修正（画面確認で発覚・修正済み）: `DashboardData` はサーバから返せない。**
+> `buildDashboardData` の戻り値は `Map`（`byMonth`）を含み、JSON 化で `{}` に潰れて
+> `ProjectMatrix` が `row.byMonth.get is not a function` で落ちた。
+> **対策: API は GROUP BY 済みの集計素材（projects / sales / costs）だけを返し、
+> `buildDashboardData` の畳み込みは従来どおりクライアント（useDashboard）で行う**。
+> 転送量削減（明細行を送らない）というプランの目的は維持。
+> 修正後、Playwright で 2025 年度の表示値（売上 ¥2,252,050 / 費用 ¥1,876,800 /
+> 営業利益 ¥375,250）が DB の SUM と一致することを確認。
+> **教訓: サーバから返す値は JSON セーフ（Map / Set / Date 不可）必須。**
+> Task 11 の years / months も同じ制約に注意。
 
 ### Task 11: years / months 集計の SQL 化
 

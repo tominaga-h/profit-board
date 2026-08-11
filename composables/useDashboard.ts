@@ -1,64 +1,43 @@
-import type { Database } from '~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
-import { buildDashboardData, type DashboardData } from '~/lib/dashboard'
+import { buildDashboardData } from '~/lib/dashboard'
+import type { DashboardData, DashboardProject, PerformanceRow } from '~/lib/dashboard'
+
+/** /api/dashboard が返す集計素材（年度×月×プロジェクトで SUM 済みの行）。 */
+type DashboardSourceResponse = {
+  projects: DashboardProject[]
+  sales: PerformanceRow[]
+  costs: PerformanceRow[]
+}
 
 /**
  * 年度全体の集計を取得する。
  *
- * ★ プロジェクト一覧も含めてここで取る。useProjects と併用すると status が2系統になり、
- *   画面側で「どちらも成功したか」を組み合わせる分岐が増える。集計の材料は
- *   ひとまとまりで揃って初めて意味を持つので、取得の成否も1つにまとめる。
- *
- * ★ 年度は引数ではなく fetchDashboard の引数で受ける。年度プルダウンの操作で
- *   何度も切り替わるため、composable を作り直さずに再取得できるようにする。
+ * /api/dashboard（server/api/dashboard.get.ts）が SQL の GROUP BY で集計済み行まで
+ * 絞り、畳み込み（buildDashboardData）はここで行う。DashboardData は Map を含む
+ * ため、サーバで畳み込んで JSON で返すと Map が {} に潰れて画面が壊れる。
+ * 前年同期比のための前年度分もサーバ側で1回のクエリにまとめており、往復は増えない。
  */
 export const useDashboard = () => {
-  const supabase = useSupabaseClient<Database>()
-
   const data = ref<DashboardData | null>(null)
   const status = ref<FetchStatus>(FetchStatus.IDLE)
   const errorMessage = ref<string | null>(null)
 
-  /**
-   * 指定年度と前年度の実績をまとめて取得して畳む。
-   *
-   * 前年同期比のために前年度が要るが、年度ごとに問い合わせを分けると往復が倍になる。
-   * 2年度分を1回で引いて、年度の振り分けは集計側で行う。
-   */
   const fetchDashboard = async (fiscalYear: number): Promise<void> => {
     status.value = FetchStatus.LOADING
     errorMessage.value = null
 
-    const years = [fiscalYear, fiscalYear - 1]
-
-    const [projectsResult, salesResult, costsResult] = await Promise.all([
-      supabase.from('m_projects').select('id, service_name, company_name').order('id'),
-      supabase
-        .from('t_sales')
-        .select('fiscal_year, month, project_id, amount')
-        .in('fiscal_year', years),
-      supabase
-        .from('t_costs')
-        .select('fiscal_year, month, project_id, amount')
-        .in('fiscal_year', years),
-    ])
-
-    const failed = projectsResult.error ?? salesResult.error ?? costsResult.error
-    if (failed) {
-      console.error('[useDashboard] 集計データの取得に失敗しました', failed)
+    try {
+      const source = await $fetch<DashboardSourceResponse>('/api/dashboard', {
+        query: { fiscalYear },
+      })
+      data.value = buildDashboardData(fiscalYear, source.projects, source.sales, source.costs)
+      status.value = FetchStatus.SUCCESS
+    } catch (error) {
+      console.error('[useDashboard] 集計データの取得に失敗しました', error)
       data.value = null
       errorMessage.value = '集計データを取得できませんでした。時間をおいて再度お試しください。'
       status.value = FetchStatus.ERROR
-      return
     }
-
-    data.value = buildDashboardData(
-      fiscalYear,
-      projectsResult.data ?? [],
-      salesResult.data ?? [],
-      costsResult.data ?? [],
-    )
-    status.value = FetchStatus.SUCCESS
   }
 
   return { data, status, errorMessage, fetchDashboard }
