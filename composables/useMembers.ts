@@ -1,6 +1,8 @@
+import type { FetchError } from 'ofetch'
 import type { Database } from '~/types/database.types'
 import { FetchStatus } from '~/lib/fetchStatus'
 import type { MemberRowInput } from '~/lib/schemas/member'
+import { PG_ERROR_CODE } from '~/lib/pgErrorCodes'
 
 /** m_users の1行（メンバー）。 */
 export type Member = Database['public']['Tables']['m_users']['Row']
@@ -29,42 +31,30 @@ export type MemberDraft = MemberRowInput & {
  *   ページ遷移で作り直されるほうが、常に最新が出るぶん素直に動く。
  */
 export const useMembers = () => {
-  const supabase = useSupabaseClient<Database>()
-
   const members = ref<Member[]>([])
   const status = ref<FetchStatus>(FetchStatus.IDLE)
   const errorMessage = ref<string | null>(null)
 
   /**
-   * m_users を全件取得する。
+   * m_users を全件取得する。並び順（ID 昇順）はサーバ側（server/api/members.get.ts）が保証する。
    *
-   * ★ order('id') は省略しない。PostgREST は ORDER BY がないと行順を保証せず、
-   *   編集画面で UPDATE した行だけが末尾に飛ぶ挙動になりうる。
-   *   ID 昇順は登録順であり、「行追加は末尾」という仕様とも整合する。
-   *
-   * ★ RLS（m_users_select_app_user）により未登録ユーザーには0件しか返らないが、
-   *   この画面に来た時点で middleware/auth.global.ts が AUTHORIZED を
-   *   確認済みなので、0件になるのは本当にメンバーがいないときだけ。
+   * ★ RLS を通らない API サーバ接続だが、requireAppUser による認可は
+   *   middleware/auth.global.ts の AUTHORIZED 確認と同じ判定を再現しているため、
+   *   0件になるのは本当にメンバーがいないときだけ。
    */
   const fetchMembers = async (): Promise<void> => {
     status.value = FetchStatus.LOADING
     errorMessage.value = null
 
-    const { data, error } = await supabase
-      .from('m_users')
-      .select('*')
-      .order('id', { ascending: true })
-
-    if (error) {
+    try {
+      members.value = await $fetch<Member[]>('/api/members')
+      status.value = FetchStatus.SUCCESS
+    } catch (error) {
       console.error('[useMembers] m_users の取得に失敗しました', error)
       members.value = []
       errorMessage.value = 'メンバー情報を取得できませんでした。時間をおいて再度お試しください。'
       status.value = FetchStatus.ERROR
-      return
     }
-
-    members.value = data ?? []
-    status.value = FetchStatus.SUCCESS
   }
 
   const isSaving = ref(false)
@@ -73,26 +63,20 @@ export const useMembers = () => {
   /**
    * このメンバーに費用実績（t_costs）があるかを判定する。削除制御に使う。
    *
-   * ★ head: true で本体を転送しない。存在するかどうかしか要らないため。
-   *   索引 idx_t_costs_user_id が DDL 側に用意されている。
-   *
    * ★ 失敗したら true（実績あり）に倒す。判定できないまま削除を通すと、
    *   実績のあるメンバーを消そうとして DB の FK 違反にぶつかり、
    *   保存全体が途中で止まる。安全側は「消させない」。
    */
   const hasCostRecords = async (userId: number): Promise<boolean> => {
-    const { count, error } = await supabase
-      .from('t_costs')
-      .select('id', { head: true, count: 'exact' })
-      .eq('user_id', userId)
-      .limit(1)
-
-    if (error) {
+    try {
+      const { hasRecords } = await $fetch<{ hasRecords: boolean }>(
+        `/api/members/${userId}/has-costs`,
+      )
+      return hasRecords
+    } catch (error) {
       console.error('[useMembers] t_costs の実績確認に失敗しました', error)
       return true
     }
-
-    return (count ?? 0) > 0
   }
 
   /** 既存行のうち、取得時から値が変わったものだけを拾う。 */
@@ -112,15 +96,14 @@ export const useMembers = () => {
   /**
    * 編集内容を一括保存する。成功したら true。
    *
-   * ★ 実行順は DELETE → UPDATE → INSERT。削除を先にするのは、消したメンバーの
-   *   メールアドレスを別の行に付け替えるケースがあるため。順序を変えると
-   *   一時的に同じメールが2行存在し、UNIQUE 制約（m_users_email_key）に当たる。
+   * ★ DELETE → UPDATE → INSERT の順序は server/api/members.put.ts のトランザクション内で
+   *   維持される（削除したメンバーのメールを別行へ付け替えるケースで、同一 Tx 内でも
+   *   UNIQUE 制約は文単位で即時評価されるため、順序自体は消えない）。
    *
-   * ★ supabase-js はトランザクションを張れないので、途中で失敗すると
-   *   部分適用になる。呼び出し側は false を受けたら必ず再取得して、
-   *   画面を DB の実状態に合わせること。
+   * ★ 失敗時は Tx ごとロールバックされるため部分適用は起きない。それでも再取得するのは
+   *   画面表示を DB の実状態に合わせるため（保存前の編集内容を残したままにしない）。
    *
-   * ★ 変更のあった行だけ UPDATE する。全行を投げると無変更行の updated_at まで
+   * ★ 変更のあった行だけ UPDATE 対象として送る。全行を投げると無変更行の updated_at まで
    *   動き、「誰がいつ触ったか」が追えなくなる。
    */
   const saveMembers = async (
@@ -131,69 +114,33 @@ export const useMembers = () => {
     isSaving.value = true
     saveErrorMessage.value = null
 
+    // 未変更の既存行はサーバに送らない。サーバ側は受け取った drafts のうち
+    // id ありは UPDATE、id なし（新規行）は INSERT として扱うため、
+    // 変更行だけを渡せばそのまま「変更行のみ更新」になる。
+    const added = drafts.filter((draft) => draft.id === null)
+
     try {
-      if (deletedIds.length > 0) {
-        const { error } = await supabase.from('m_users').delete().in('id', [...deletedIds])
-
-        if (error) {
-          console.error('[useMembers] メンバーの削除に失敗しました', error)
-          // 23503 = FK 違反。ゴミ箱押下時のチェックをすり抜けるのは、
-          // その後に他の利用者が実績を登録した場合。
-          saveErrorMessage.value =
-            error.code === '23503'
-              ? '実績データが登録されたため、削除できませんでした。画面を最新の状態に更新します。'
-              : 'メンバーの削除に失敗しました。'
-          return false
-        }
-      }
-
-      for (const draft of pickChanged(drafts, original)) {
-        const { error } = await supabase
-          .from('m_users')
-          // updated_at は送らない。トリガ trg_m_users_updated_at が自動で更新する。
-          .update({
-            family_name: draft.family_name,
-            first_name: draft.first_name,
-            email: draft.email,
-            unit_price: draft.unit_price,
-          })
-          .eq('id', draft.id)
-
-        if (error) {
-          console.error('[useMembers] メンバーの更新に失敗しました', error)
-          saveErrorMessage.value =
-            error.code === '23505'
-              ? `メールアドレス「${draft.email}」は既に登録されています。`
-              : `「${draft.family_name} ${draft.first_name}」の更新に失敗しました。`
-          return false
-        }
-      }
-
-      const added = drafts.filter((draft) => draft.id === null)
-
-      if (added.length > 0) {
-        const { error } = await supabase.from('m_users').insert(
-          // ★ id は送らない。SERIAL の自動採番に任せる。明示するとシーケンスの
-          //   現在値がズレて、次の INSERT が主キー衝突する（seed.sql と同じ理由）。
-          added.map((draft) => ({
-            family_name: draft.family_name,
-            first_name: draft.first_name,
-            email: draft.email,
-            unit_price: draft.unit_price,
-          })),
-        )
-
-        if (error) {
-          console.error('[useMembers] メンバーの追加に失敗しました', error)
-          saveErrorMessage.value =
-            error.code === '23505'
-              ? '追加したメールアドレスが既に登録されています。'
-              : 'メンバーの追加に失敗しました。'
-          return false
-        }
-      }
+      await $fetch('/api/members', {
+        method: 'PUT',
+        body: {
+          drafts: [...pickChanged(drafts, original), ...added],
+          deletedIds: [...deletedIds],
+        },
+      })
 
       return true
+    } catch (error) {
+      console.error('[useMembers] メンバーの保存に失敗しました', error)
+      const pgCode = (error as FetchError)?.data?.data?.pgCode
+
+      saveErrorMessage.value =
+        pgCode === PG_ERROR_CODE.FOREIGN_KEY_VIOLATION
+          ? '実績データが登録されたため、削除できませんでした。画面を最新の状態に更新します。'
+          : pgCode === PG_ERROR_CODE.UNIQUE_VIOLATION
+            ? 'メールアドレスが重複しているため保存できませんでした。'
+            : 'メンバーの保存に失敗しました。'
+
+      return false
     } finally {
       isSaving.value = false
     }
