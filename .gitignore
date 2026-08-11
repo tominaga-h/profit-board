@@ -16,6 +16,10 @@ dist
 coverage/
 .codegraph/
 
+# AI
+.claude/
+.opencode/
+
 # Env
 # ネゲートは .env.* より後ろに置くこと（gitignore は後勝ち）
 .env
