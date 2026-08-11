@@ -63,6 +63,8 @@ type KpiCard = {
   /** 増減を良し悪しで色付けするための符号。null は色を付けない。 */
   tone: 'up' | 'down' | null
   emphasize: boolean
+  /** 金額がマイナスかどうか。強調カードの文字色を赤に切り替えるために使う。 */
+  negative: boolean
 }
 
 /**
@@ -89,6 +91,7 @@ const kpiCards = computed<KpiCard[]>(() => {
       diff: formatSignedPercent(yoy.sales),
       tone: toTone(yoy.sales, true),
       emphasize: false,
+      negative: false,
     },
     {
       label: '費用',
@@ -96,6 +99,7 @@ const kpiCards = computed<KpiCard[]>(() => {
       diff: formatSignedPercent(yoy.costs),
       tone: toTone(yoy.costs, false),
       emphasize: false,
+      negative: false,
     },
     {
       label: '営業利益',
@@ -103,6 +107,7 @@ const kpiCards = computed<KpiCard[]>(() => {
       diff: formatSignedPercent(yoy.profit),
       tone: toTone(yoy.profit, true),
       emphasize: true,
+      negative: kpi.grossProfit < 0,
     },
     {
       label: '利益率',
@@ -110,6 +115,7 @@ const kpiCards = computed<KpiCard[]>(() => {
       diff: formatPointDiff(yoy.profitRatePoint),
       tone: toTone(yoy.profitRatePoint, true),
       emphasize: false,
+      negative: false,
     },
   ]
 })
@@ -171,7 +177,7 @@ const kpiCards = computed<KpiCard[]>(() => {
           <dt class="text-xs text-slate-500">{{ card.label }}</dt>
           <dd
             class="mt-1 text-2xl font-bold tabular-nums"
-            :class="card.emphasize ? 'text-emerald-600' : 'text-slate-900'"
+            :class="card.emphasize ? (card.negative ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'"
           >
             {{ card.value }}
           </dd>
