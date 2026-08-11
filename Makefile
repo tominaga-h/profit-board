@@ -137,6 +137,14 @@ sb: ## 任意の supabase コマンドを実行する（例: make sb CMD="projec
 	@test -n "$(CMD)" || { echo 'CMD を指定してください。例: make sb CMD="projects list"'; exit 1; }
 	@$(ENV_SH) supabase $(CMD)
 
+# drizzle-kit は npm 依存のためコンテナ内で実行する（Supabase CLI とは逆）。
+# docker-compose.yml は .env をコンテナへ渡していないため -e での明示指定が必要。
+# 生成物は server/db/schema.ts へ手動マージする（numeric の mode: 'number' が
+# pull 再実行で消えるため、pull 出力をそのまま採用してはいけない）。
+.PHONY: db-drizzle-pull
+db-drizzle-pull: ## リモートDBからDrizzleスキーマ差分を確認する（生成物は手動マージ）
+	@$(ENV_SH) $(COMPOSE) run --rm --no-deps -e DIRECT_DATABASE_URL $(SERVICE) npx drizzle-kit pull
+
 # types/database.types.ts はリモートスキーマからの自動生成物。
 # マイグレーションを追加・変更したら必ず流し直す（手で書くとスキーマとズレる）。
 .PHONY: db-types

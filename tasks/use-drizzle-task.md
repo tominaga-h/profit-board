@@ -66,9 +66,9 @@ Task 2 (依存追加 + DB接続基盤)
 
 **受け入れ基準:**
 
-- [ ] `useDb()` が Supavisor transaction mode（:6543）経由で `SELECT 1` 相当を実行できる（確認用の仮ルートは確認後に削除）
-- [ ] `NUXT_DATABASE_URL` が `runtimeConfig.public` に**入っていない**（クライアントバンドルに接続文字列が露出しない）
-- [ ] `make db-drizzle-pull` がコンテナ内から実行できる（`-e DIRECT_DATABASE_URL` の明示渡し）
+- [x] `useDb()` が Supavisor transaction mode（:6543）経由で `SELECT 1` 相当を実行できる（確認用の仮ルートは確認後に削除）
+- [x] `NUXT_DATABASE_URL` が `runtimeConfig.public` に**入っていない**（クライアントバンドルに接続文字列が露出しない）
+- [x] `make db-drizzle-pull` がコンテナ内から実行できる（`-e DIRECT_DATABASE_URL` の明示渡し）
 
 **検証:** `make test` 無影響。dev コンテナからリモート Supavisor への疎通確認。
 **依存:** なし（Task 1 と並行可）
@@ -76,6 +76,14 @@ Task 2 (依存追加 + DB接続基盤)
 **規模:** M
 
 > **`prepare: false` を忘れると transaction mode では初回クエリから失敗する**（プラン 3.1）。ここで確実に入れること。
+
+> **実施記録（2026-08-11 完了）:**
+>
+> - 依存追加: `drizzle-orm@0.45.2` / `postgres`（dependencies）、`drizzle-kit@0.31.10`（devDependencies）
+> - 疎通確認: 一時ルート `/api/_db-check` で `select 1` が `{ ok: true }` を返すことを確認。`make test` は 218 件全通過
+> - **`docker-compose.yml` は変更不要だった**: dev サーバはプロジェクトルート（マウント済み）の `.env` を Nuxt 自身が読むため、compose での受け渡しは不要。drizzle-kit だけは `.env` を読まないため、Makefile 側の `-e DIRECT_DATABASE_URL` で渡す
+> - **接続先ホストの落とし穴（2回踏んだ）**: direct 接続（`db.<ref>.supabase.co`）はコンテナから DNS 解決不可（IPv6 のみ）。また pooler ホストは `aws-0-ap-southeast-1.pooler.supabase.com` が正で、`aws-1-...` は認証エラー（XX000）、番号なしは存在しない。**ダッシュボードの Connect ダイアログからのコピーが必須**（手打ちは事故る）
+> - `nuxt.config.ts` に `useSsrCookies` を false にしてはいけない旨のコメントを追加（プラン 2.2 の指示。Task 4 の前倒し）
 
 ### Task 3: 初回 pull と numeric 手修正（schema.ts 確立）
 
