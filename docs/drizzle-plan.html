@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drizzle 導入実装プラン | profit-board</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --success: #059669;
+    --success-light: #d1fae5;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --neutral: #475569;
+    --neutral-light: #f1f5f9;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #f8fafc;
+    padding: 48px 32px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .hero h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+  }
+  .hero .subtitle {
+    font-size: 17px;
+    color: #f1f5f9;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .hero .meta {
+    font-size: 14px;
+    color: #cbd5e1;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .toc-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+  }
+  .toc ul { list-style: none; columns: 2; column-gap: 32px; }
+  @media (max-width: 720px) { .toc ul { columns: 1; } }
+  .toc li { padding: 4px 0; break-inside: avoid; }
+  .toc a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    word-break: break-word;
+  }
+  .toc a:hover { text-decoration: underline; }
+  .toc .num {
+    display: inline-block;
+    min-width: 24px;
+    height: 24px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 24px;
+    flex-shrink: 0;
+  }
+
+  /* Section */
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2 .badge {
+    font-size: 12px;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 28px 0 12px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  p { margin-bottom: 12px; color: var(--text); }
+  ul, ol { margin: 12px 0 12px 24px; }
+  li { margin-bottom: 6px; }
+  code {
+    font-family: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--accent);
+  }
+  .file-path {
+    font-family: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* TL;DR Box */
+  .tldr {
+    background: linear-gradient(135deg, var(--accent-light) 0%, #eff6ff 100%);
+    border-left: 4px solid var(--accent);
+    padding: 20px 24px;
+    border-radius: 8px;
+    margin-bottom: 32px;
+  }
+  .tldr-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tldr p { font-size: 15px; color: var(--text); margin: 0; }
+  .tldr p + p { margin-top: 8px; }
+
+  /* Verdict Cards */
+  .verdict-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .verdict-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    border-top: 4px solid var(--accent);
+    min-width: 0;
+    overflow: hidden;
+  }
+  .verdict-card.neutral { border-top-color: var(--neutral); }
+  .verdict-card.positive { border-top-color: var(--success); }
+  .verdict-card.negative { border-top-color: var(--danger); }
+  .verdict-card .label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .verdict-card .headline {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+  .verdict-card .body {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    word-break: break-word;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    table-layout: fixed;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  th {
+    background: var(--surface-2);
+    font-weight: 700;
+    color: var(--text);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.yes { color: var(--success); font-weight: 600; }
+  td.no { color: var(--danger); font-weight: 600; }
+  td.maybe { color: var(--warning); font-weight: 600; }
+
+  /* Code blocks */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 16px 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0;
+  }
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+  }
+  .comment { color: #94a3b8; }
+  .keyword { color: #c084fc; }
+  .string { color: #86efac; }
+  .func { color: #93c5fd; }
+  .num-lit { color: #fdba74; }
+
+  /* Diagram */
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+    overflow-x: auto;
+    min-width: 0;
+  }
+  .diagram svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .diagram-caption {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 32px; margin: 20px 0; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 22px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--surface);
+  }
+  .timeline-item .step {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .timeline-item h4 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .timeline-item p { font-size: 14px; color: var(--text-muted); margin: 0; word-break: break-word; }
+  .timeline-item .verify {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--success);
+  }
+
+  /* Callouts */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 14px;
+    display: flex;
+    gap: 12px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .callout-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .callout-body { flex: 1 1 0; min-width: 0; word-break: break-word; }
+  .callout-body strong { display: block; margin-bottom: 4px; }
+  .callout.info {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-left: 3px solid var(--accent);
+  }
+  .callout.warning {
+    background: var(--warning-light);
+    color: #92400e;
+    border-left: 3px solid var(--warning);
+  }
+  .callout.danger {
+    background: var(--danger-light);
+    color: #991b1b;
+    border-left: 3px solid var(--danger);
+  }
+  .callout.success {
+    background: var(--success-light);
+    color: #065f46;
+    border-left: 3px solid var(--success);
+  }
+
+  /* Comparison cards */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  @media (max-width: 720px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .compare-card.current { border-top: 4px solid var(--neutral); }
+  .compare-card.proposed { border-top: 4px solid var(--accent); }
+  .compare-card .label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .compare-card h4 { font-size: 16px; margin-bottom: 12px; }
+  .compare-card ul { font-size: 14px; }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Highlight */
+  .highlight {
+    background: linear-gradient(transparent 60%, #fef08a 60%);
+    padding: 0 2px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ========== Header ========== -->
+<header class="hero">
+  <h1>Drizzle 導入実装プラン</h1>
+  <p class="subtitle">DB 操作のサーバサイド全面移行 — Nitro API ルート + Drizzle ORM</p>
+  <p class="meta">対象リポジトリ: profit-board &middot; 正のドキュメント: docs/DRIZZLE-PLAN.md &middot; 2026年8月</p>
+</header>
+
+<!-- ========== TL;DR ========== -->
+<div class="tldr">
+  <div class="tldr-title">⚡ 3行でまとめ</div>
+  <p><strong>① 何をする:</strong> 全 composable の DB I/O を <code>server/api/</code>（Nitro ルート）経由に変え、そこで Drizzle を使う。<span class="highlight">PostgREST 直叩きは全廃</span>。</p>
+  <p><strong>② 何が得られる:</strong> 本物のトランザクション（保存の部分適用リスク解消）、SQL の JOIN / GROUP BY（全明細行のブラウザ転送解消）。</p>
+  <p><strong>③ 変えないもの:</strong> zod スキーマ（維持 + サーバ検証に再利用）、Supabase Auth、RLS（PostgREST 防御として残置）、マイグレーション管理（Supabase CLI のまま）。</p>
+</div>
+
+<div class="callout info">
+  <div class="callout-icon">💡</div>
+  <div class="callout-body">
+    <strong>調査レポートとの関係</strong>
+    <a href="./drizzle-investigation.html">調査レポート</a>は「段階導入（プロトタイプで費用対効果を測る）」を推奨していたが、その後の検討で<strong>全面移行</strong>が決定された。本プランはその決定を前提に、移行を安全に進めるタスク順序と設計を定める。
+  </div>
+</div>
+
+<!-- ========== TOC ========== -->
+<nav class="toc">
+  <div class="toc-title">目次</div>
+  <ul>
+    <li><a href="#policy"><span class="num">1</span> 目的と確定方針</a></li>
+    <li><a href="#architecture"><span class="num">2</span> アーキテクチャ全体像</a></li>
+    <li><a href="#connection"><span class="num">3</span> DB 接続構成</a></li>
+    <li><a href="#schema"><span class="num">4</span> スキーマ管理と型戦略</a></li>
+    <li><a href="#auth"><span class="num">5</span> 認証・認可のサーバ実装</a></li>
+    <li><a href="#api"><span class="num">6</span> API ルート設計</a></li>
+    <li><a href="#transaction"><span class="num">7</span> トランザクション設計</a></li>
+    <li><a href="#aggregate"><span class="num">8</span> JOIN / 集計の SQL 化</a></li>
+    <li><a href="#zod"><span class="num">9</span> zod スキーマの再利用</a></li>
+    <li><a href="#deploy"><span class="num">10</span> デプロイ上の重大な注意</a></li>
+    <li><a href="#tasks"><span class="num">11</span> 実装タスク分割（T1〜T9）</a></li>
+    <li><a href="#risks"><span class="num">12</span> リスクと対処</a></li>
+    <li><a href="#appendix"><span class="num">13</span> 付録</a></li>
+  </ul>
+</nav>
+
+<!-- ========== Section 1 ========== -->
+<section id="policy">
+  <h2>目的と確定方針 <span class="badge">Decision</span></h2>
+
+  <h3>確定方針（4点）</h3>
+  <table>
+    <thead>
+      <tr><th style="width: 26%;">方針</th><th>内容</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>全面移行</strong></td>
+        <td>全 composable の DB I/O を <code>server/api/</code> の Nitro ルート経由に変え、そこで Drizzle を使う。クライアントからの PostgREST 直叩きは全廃する</td>
+      </tr>
+      <tr>
+        <td><strong>zod スキーマ維持</strong></td>
+        <td><span class="file-path">lib/schemas/</span> は現状のまま維持。加えてサーバ側のリクエストボディ検証にも再利用する</td>
+      </tr>
+      <tr>
+        <td><strong>認可はサーバ側</strong></td>
+        <td>API ルートで JWT 検証 + <code>m_users</code> 照合（RLS 関数 <code>is_app_user()</code> と同等判定）。DB 接続は RLS を通らない専用接続。既存 RLS は PostgREST 防御として残置</td>
+      </tr>
+      <tr>
+        <td><strong>マイグレーション不変</strong></td>
+        <td>スキーマ変更の唯一の正は <span class="file-path">supabase/migrations/*.sql</span>（Supabase CLI）のまま。Supabase Auth（Google OAuth）も継続使用</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>移行で解消される既知の問題</h3>
+  <table>
+    <thead>
+      <tr><th style="width: 24%;">問題</th><th>現状</th><th style="width: 28%;">移行後</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>部分適用リスク</td>
+        <td><code>savePerformance()</code> は DELETE→UPDATE→INSERT→upsert の最大 N+4 往復。途中失敗で中途半端な状態になる（コード内コメントで自認済み）</td>
+        <td class="yes">db.transaction() で全ロールバック</td>
+      </tr>
+      <tr>
+        <td>email UNIQUE の順序回避</td>
+        <td><code>saveMembers()</code> は「削除を先にしないと一時的に UNIQUE 衝突」を実行順序だけで回避。途中失敗で削除だけ通る</td>
+        <td class="yes">同一 Tx 内で実行。途中失敗しても巻き戻る</td>
+      </tr>
+      <tr>
+        <td>削除ガードの TOCTOU</td>
+        <td>「count で実績確認 → 後で DELETE」の間に他ユーザーが実績を入れると FK 違反</td>
+        <td class="yes">Tx 内 FK 違反 → 409 が最終防衛</td>
+      </tr>
+      <tr>
+        <td>全明細行のブラウザ転送</td>
+        <td>dashboard / 年度別 / 月別集計が全行をクライアントへ転送し JS で GROUP BY</td>
+        <td class="yes">SQL 側で GROUP BY し集計済み行だけ返す</td>
+      </tr>
+      <tr>
+        <td>手動 JOIN</td>
+        <td><code>t_costs</code> × <code>m_users</code> を Map で手動結合</td>
+        <td class="yes">SQL の JOIN で表現可能に</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== Section 2 ========== -->
+<section id="architecture">
+  <h2>アーキテクチャ全体像 <span class="badge">Before / After</span></h2>
+
+  <div class="compare">
+    <div class="compare-card current">
+      <div class="label">Before</div>
+      <h4>ブラウザ起点の PostgREST 直叩き</h4>
+      <ul>
+        <li>composable → <code>useSupabaseClient()</code> → PostgREST (RLS) → Postgres</li>
+        <li>トランザクション不可・JOIN/集計は JS 側</li>
+        <li>防御は RLS のみ</li>
+      </ul>
+    </div>
+    <div class="compare-card proposed">
+      <div class="label">After</div>
+      <h4>Nitro API ルート経由のサーバ実行</h4>
+      <ul>
+        <li>composable（公開IF不変）→ <code>$fetch('/api/**')</code> → Nitro ルート</li>
+        <li><code>requireAppUser()</code> で認可 → Drizzle で SQL 実行</li>
+        <li><code>@nuxtjs/supabase</code> は Auth 専用に縮退</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+<svg viewBox="0 0 880 425" xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto; font-family: -apple-system, sans-serif;">
+  <!-- Browser Box -->
+  <rect x="20" y="20" width="250" height="360" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="40" y="45" fill="#64748b" font-size="12" font-weight="700">BROWSER (Nuxt SPA)</text>
+
+  <rect x="40" y="60" width="210" height="50" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="145" y="82" text-anchor="middle" fill="#1e3a8a" font-size="13" font-weight="700">pages / components</text>
+  <text x="145" y="98" text-anchor="middle" fill="#1e3a8a" font-size="11">無変更</text>
+
+  <rect x="40" y="140" width="210" height="50" rx="6" fill="#fef3c7" stroke="#d97706"/>
+  <text x="145" y="162" text-anchor="middle" fill="#78350f" font-size="13" font-weight="700">composables/use*.ts</text>
+  <text x="145" y="178" text-anchor="middle" fill="#78350f" font-size="11">公開IF不変・内部を $fetch へ</text>
+
+  <rect x="40" y="240" width="210" height="50" rx="6" fill="#d1fae5" stroke="#059669"/>
+  <text x="145" y="262" text-anchor="middle" fill="#064e3b" font-size="13" font-weight="700">lib/schemas/*.ts (zod)</text>
+  <text x="145" y="278" text-anchor="middle" fill="#064e3b" font-size="11">フォーム検証・維持</text>
+
+  <rect x="40" y="315" width="210" height="50" rx="6" fill="#e0e7ff" stroke="#4f46e5"/>
+  <text x="145" y="337" text-anchor="middle" fill="#312e81" font-size="13" font-weight="700">Supabase Auth client</text>
+  <text x="145" y="353" text-anchor="middle" fill="#312e81" font-size="11">cookie: sb-&lt;ref&gt;-auth-token</text>
+
+  <!-- pages -> composables -->
+  <path d="M 145 110 L 145 140" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+
+  <!-- Nitro Box -->
+  <rect x="320" y="20" width="270" height="360" rx="8" fill="#fdf2f8" stroke="#be185d" stroke-width="2"/>
+  <text x="340" y="45" fill="#9d174d" font-size="12" font-weight="700">NITRO SERVER (server/) 新設</text>
+
+  <rect x="340" y="60" width="230" height="50" rx="6" fill="#ffffff" stroke="#be185d"/>
+  <text x="455" y="82" text-anchor="middle" fill="#831843" font-size="13" font-weight="700">server/api/**</text>
+  <text x="455" y="98" text-anchor="middle" fill="#831843" font-size="11">1画面操作 = 1エンドポイント</text>
+
+  <rect x="340" y="140" width="230" height="50" rx="6" fill="#ffffff" stroke="#be185d"/>
+  <text x="455" y="162" text-anchor="middle" fill="#831843" font-size="13" font-weight="700">requireAppUser(event)</text>
+  <text x="455" y="178" text-anchor="middle" fill="#831843" font-size="11">JWT 検証 + m_users 照合</text>
+
+  <rect x="340" y="220" width="230" height="50" rx="6" fill="#ffffff" stroke="#be185d"/>
+  <text x="455" y="242" text-anchor="middle" fill="#831843" font-size="13" font-weight="700">readValidatedBody + zod</text>
+  <text x="455" y="258" text-anchor="middle" fill="#831843" font-size="11">lib/schemas を再利用</text>
+
+  <rect x="340" y="300" width="230" height="55" rx="6" fill="#fce7f3" stroke="#be185d"/>
+  <text x="455" y="322" text-anchor="middle" fill="#831843" font-size="13" font-weight="700">Drizzle + postgres-js</text>
+  <text x="455" y="340" text-anchor="middle" fill="#831843" font-size="11">db.transaction() / JOIN / GROUP BY</text>
+
+  <!-- api -> auth -> body -> drizzle -->
+  <path d="M 455 110 L 455 140" stroke="#be185d" stroke-width="1.5" fill="none" marker-end="url(#ah-pink)"/>
+  <path d="M 455 190 L 455 220" stroke="#be185d" stroke-width="1.5" fill="none" marker-end="url(#ah-pink)"/>
+  <path d="M 455 270 L 455 300" stroke="#be185d" stroke-width="1.5" fill="none" marker-end="url(#ah-pink)"/>
+
+  <!-- composables -> api ($fetch) -->
+  <path d="M 250 165 L 320 85" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#ah-blue)"/>
+  <text x="285" y="115" fill="#2563eb" font-size="11" font-weight="700">$fetch + cookie</text>
+
+  <!-- Supabase Box -->
+  <rect x="640" y="20" width="220" height="360" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+  <text x="660" y="45" fill="#475569" font-size="12" font-weight="700">SUPABASE</text>
+
+  <rect x="660" y="60" width="180" height="55" rx="6" fill="#ffffff" stroke="#475569"/>
+  <text x="750" y="82" text-anchor="middle" fill="#0f172a" font-size="13" font-weight="700">Supabase Auth</text>
+  <text x="750" y="100" text-anchor="middle" fill="#475569" font-size="11">Google OAuth + JWT</text>
+
+  <rect x="660" y="160" width="180" height="55" rx="6" fill="#ffffff" stroke="#475569"/>
+  <text x="750" y="182" text-anchor="middle" fill="#0f172a" font-size="13" font-weight="700">Supavisor :6543</text>
+  <text x="750" y="200" text-anchor="middle" fill="#475569" font-size="11">transaction mode プール</text>
+
+  <rect x="660" y="255" width="180" height="100" rx="6" fill="#ffffff" stroke="#475569"/>
+  <text x="750" y="280" text-anchor="middle" fill="#0f172a" font-size="13" font-weight="700">Postgres</text>
+  <text x="750" y="300" text-anchor="middle" fill="#475569" font-size="11">m_users / m_projects</text>
+  <text x="750" y="316" text-anchor="middle" fill="#475569" font-size="11">m_fiscal_years / t_*</text>
+  <text x="750" y="338" text-anchor="middle" fill="#dc2626" font-size="11" font-weight="700">RLS 残置 (PostgREST 防御)</text>
+
+  <!-- auth verify -->
+  <path d="M 570 155 L 660 100" stroke="#4f46e5" stroke-width="1.5" fill="none" stroke-dasharray="4,4" marker-end="url(#ah-indigo)"/>
+  <text x="608" y="118" fill="#4f46e5" font-size="10" font-weight="700">JWT 検証</text>
+
+  <!-- drizzle -> supavisor -> pg -->
+  <path d="M 570 327 L 615 327 L 615 188 L 660 188" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#ah-green)"/>
+  <text x="612" y="255" fill="#059669" font-size="10" font-weight="700" transform="rotate(-90 612 255)">pg プロトコル</text>
+  <path d="M 750 215 L 750 255" stroke="#475569" stroke-width="1.5" fill="none" marker-end="url(#ah-gray)"/>
+
+  <!-- browser auth -> supabase auth (下側を迂回して交差を避ける) -->
+  <path d="M 145 365 L 145 398 L 868 398 L 868 88 L 845 88" stroke="#4f46e5" stroke-width="1.5" fill="none" stroke-dasharray="4,4" marker-end="url(#ah-indigo)"/>
+  <text x="505" y="414" text-anchor="middle" fill="#4f46e5" font-size="10" font-weight="700">OAuth ログイン（継続・変更なし）</text>
+
+  <defs>
+    <marker id="ah-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#2563eb"/>
+    </marker>
+    <marker id="ah-pink" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#be185d"/>
+    </marker>
+    <marker id="ah-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#059669"/>
+    </marker>
+    <marker id="ah-indigo" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#4f46e5"/>
+    </marker>
+    <marker id="ah-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b"/>
+    </marker>
+  </defs>
+</svg>
+  </div>
+  <p class="diagram-caption">図1: 移行後のアーキテクチャ。DB I/O は全て Nitro サーバ経由になり、ブラウザと DB の直接の関係が消える。</p>
+
+  <h3>セッション伝搬が成立する根拠（検証済み）</h3>
+  <p><code>ssr: false</code> の SPA でも <code>#supabase/server</code>（<code>serverSupabaseUser</code> 等）がそのまま使える。</p>
+  <ol>
+    <li><code>@nuxtjs/supabase</code> v2 のデフォルトは <code>useSsrCookies: true</code>（本プロジェクトは上書きしていない）</li>
+    <li>このときセッションは localStorage ではなく <strong>cookie</strong>（<code>sb-&lt;ref&gt;-auth-token</code>）に保存される</li>
+    <li><code>$fetch('/api/...')</code> は同一オリジンなので cookie が自動送信され、サーバ側でセッションを復元できる</li>
+  </ol>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-body">
+      <strong>useSsrCookies を false にしてはいけない</strong>
+      セッションが localStorage に移り、cookie が送信されなくなって全 API ルートが 401 になる。<span class="file-path">nuxt.config.ts</span> にこの旨のコメントを残すこと。
+    </div>
+  </div>
+</section>
+
+<!-- ========== Section 3 ========== -->
+<section id="connection">
+  <h2>DB 接続構成 <span class="badge">server/utils/db.ts</span></h2>
+
+  <table>
+    <thead>
+      <tr><th style="width: 22%;">項目</th><th style="width: 30%;">値</th><th>Why not（別案を採らない理由）</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ドライバ</td>
+        <td><code>postgres</code>（postgres-js）+ <code>drizzle-orm/postgres-js</code></td>
+        <td>node-postgres より軽量で Drizzle 公式の第一推奨</td>
+      </tr>
+      <tr>
+        <td>接続先</td>
+        <td>Supavisor <strong>transaction mode（:6543）</strong></td>
+        <td>Vercel サーバレスは関数が並列に立ち上がり、direct 接続（:5432）では接続数を食い潰す</td>
+      </tr>
+      <tr>
+        <td><code>prepare</code></td>
+        <td class="no">false（必須）</td>
+        <td>transaction mode は prepared statement 不可。忘れると初回クエリから失敗する</td>
+      </tr>
+      <tr>
+        <td><code>max</code></td>
+        <td>1</td>
+        <td>プーリングは Supavisor に任せる。関数インスタンスごとに 1 接続で十分</td>
+      </tr>
+      <tr>
+        <td>タイムアウト</td>
+        <td><code>idle_timeout</code> / <code>connect_timeout</code> を明示</td>
+        <td>サーバレスでの接続リーク防止</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>環境変数</h3>
+  <table>
+    <thead>
+      <tr><th style="width: 30%;">変数</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>NUXT_DATABASE_URL</code></td>
+        <td>ランタイム用接続文字列（pooler :6543）。<code>runtimeConfig.databaseUrl</code> としてサーバ専用に保持。Vercel にも設定する</td>
+      </tr>
+      <tr>
+        <td><code>DIRECT_DATABASE_URL</code></td>
+        <td>drizzle-kit pull 用（session mode :5432）。ローカルのツール実行のみ</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-body">
+      <strong>NUXT_DATABASE_URL を runtimeConfig.public に置いてはいけない</strong>
+      DB パスワードを含む接続文字列がクライアントバンドルに露出する。anon key と違い、これは公開不可の秘密情報である。
+    </div>
+  </div>
+
+  <h3>RLS との関係</h3>
+  <p><code>postgres</code> ロールはテーブルオーナーであり、<code>FORCE ROW LEVEL SECURITY</code> を使っていないため RLS はオーナーには適用されない。「RLS を通らない専用接続」は追加設定なしで成立し、防御はサーバ側の <code>requireAppUser()</code>（5章）が担う。RLS ポリシーと <code>make db-check-rls</code> は PostgREST 防御層として残す。</p>
+</section>
+
+<!-- ========== Section 4 ========== -->
+<section id="schema">
+  <h2>スキーマ管理と型戦略 <span class="badge">drizzle-kit</span></h2>
+
+  <h3>運用ルール</h3>
+  <ol>
+    <li><strong>初回だけ</strong> <code>drizzle-kit pull</code> で <span class="file-path">server/db/schema.ts</span> を生成する</li>
+    <li>生成直後に numeric 列を手修正する（下記）</li>
+    <li><strong>以後は手メンテ</strong>。pull はスキーマ変更時の差分検証（drift 検知）にのみ使う</li>
+  </ol>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-body">
+      <strong>drizzle-kit generate / push / migrate は絶対に使わない</strong>
+      マイグレーションのオーナーは <span class="file-path">supabase/migrations</span> である。2系統からスキーマ変更が走ると、どちらの SQL が正か分からなくなる。
+    </div>
+  </div>
+
+  <h3>numeric 型の罠（最重要の落とし穴）</h3>
+  <p><code>amount</code> / <code>unit_price</code> は <code>NUMERIC(12,0)</code>、<code>work_hours</code> は <code>NUMERIC(6,2)</code>。PostgREST は <code>number</code> で返していたが、<strong>drizzle-kit pull のデフォルトでは numeric は <code>string</code> になる</strong>。そのままでは <span class="file-path">lib/calc.ts</span> / <span class="file-path">lib/dashboard.ts</span> の計算と API 型が全て壊れる。</p>
+
+<pre><code><span class="comment">// server/db/schema.ts — pull 生成後に必ず手修正する</span>
+amount: <span class="func">numeric</span>(<span class="string">'amount'</span>, { precision: <span class="num-lit">12</span>, scale: <span class="num-lit">0</span>, <span class="keyword">mode</span>: <span class="string">'number'</span> }),
+workHours: <span class="func">numeric</span>(<span class="string">'work_hours'</span>, { precision: <span class="num-lit">6</span>, scale: <span class="num-lit">2</span>, <span class="keyword">mode</span>: <span class="string">'number'</span> }),</code></pre>
+
+  <div class="callout warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>pull を再実行すると mode: 'number' が消える</strong>
+      これが「pull は差分検証専用、スキーマは手メンテ」とする最大の理由である。
+    </div>
+  </div>
+
+  <h3>スキーマ変更時のフロー</h3>
+<pre><code><span class="comment"># マイグレーションのオーナーは Supabase CLI のまま</span>
+make db-new NAME=add_foo   <span class="comment"># マイグレーション作成</span>
+<span class="comment"># SQL を記述</span>
+make db-push               <span class="comment"># リモートへ適用</span>
+make db-types              <span class="comment"># database.types.ts 再生成（残存期間中のみ）</span>
+make db-drizzle-pull       <span class="comment"># pull の差分を見て schema.ts を手動追随</span></code></pre>
+
+  <h3>型戦略</h3>
+  <ul>
+    <li>API レスポンス DTO は <code>InferSelectModel&lt;typeof mUsers&gt;</code> 等から導出。<code>$fetch</code> はルートハンドラの戻り型を推論するため、クライアント側の型定義追加は最小で済む</li>
+    <li><code>timestamptz</code> は JSON 経由で ISO 文字列になるため、既存クライアント型（<code>created_at: string</code>）と互換</li>
+    <li><span class="file-path">types/database.types.ts</span> は全参照が消えた時点で削除候補（T9 で判断）</li>
+  </ul>
+
+  <h3>追加依存</h3>
+  <table>
+    <thead>
+      <tr><th>パッケージ</th><th>区分</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>drizzle-orm</code>, <code>postgres</code></td><td>dependencies</td></tr>
+      <tr><td><code>drizzle-kit</code></td><td>devDependencies</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== Section 5 ========== -->
+<section id="auth">
+  <h2>認証・認可のサーバ実装 <span class="badge">server/utils/auth.ts</span></h2>
+
+  <h3>requireAppUser</h3>
+<pre><code><span class="keyword">export const</span> <span class="func">requireAppUser</span> = <span class="keyword">async</span> (event: H3Event): Promise&lt;AppUser&gt; =&gt; {
+  <span class="comment">// 1) serverSupabaseUser(event) を try/catch。失敗・email クレームなしは 401</span>
+  <span class="comment">// 2) トップレベル email クレームで m_users を照合（is_app_user() と同一判定）</span>
+  <span class="comment">// 3) 未登録は 403。登録済みなら m_users 行を返す</span>
+}</code></pre>
+
+  <ul>
+    <li>全 <code>/api/**</code> ルートの先頭で必ず呼ぶ</li>
+    <li>結果を <code>event.context.appUser</code> にキャッシュし、同一リクエスト内の二重照合を避ける</li>
+    <li><code>serverSupabaseUser</code> はエラー時に statusCode 未指定の <code>createError</code>（=500）を投げるため、try/catch で 401 に丸める</li>
+  </ul>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-body">
+      <strong>user_metadata.email を使ってはいけない</strong>
+      <code>updateUser()</code> でユーザー自身が改竄できる。トップレベル <code>email</code> クレームを使う理由は RLS の <code>is_app_user()</code> および <code>useAppUser</code> と同一である。
+    </div>
+  </div>
+
+  <h3>updated_by のサーバ導出（セキュリティ改善）</h3>
+  <p>現状 <code>t_status.updated_by</code> はクライアントから渡る引数で、改竄可能である。移行後は <strong><code>requireAppUser</code> の結果（姓 + 名）からサーバ側で導出</strong>し、クライアントからは受け取らない。</p>
+
+  <h3>useAppUser の置換</h3>
+  <p><code>useAppUser.resolve()</code> の <code>m_users</code> 直叩きは <code>GET /api/me</code> へ置き換える。fail-closed（エラー時 UNREGISTERED 扱い）の挙動は維持する。</p>
+</section>
+
+<!-- ========== Section 6 ========== -->
+<section id="api">
+  <h2>API ルート設計 <span class="badge">server/api/**</span></h2>
+
+  <p>composable の公開インターフェースを変えない粒度で「<strong>1画面操作 = 1エンドポイント</strong>」とする。これによりページ・コンポーネント層は無変更で済む。</p>
+
+  <table>
+    <thead>
+      <tr><th style="width: 10%;">Method</th><th style="width: 42%;">Path</th><th>置換対象</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/api/me</code></td><td>useAppUser.resolve</td></tr>
+      <tr><td>GET</td><td><code>/api/members</code></td><td>useMembers.fetchMembers</td></tr>
+      <tr><td>PUT</td><td><code>/api/members</code></td><td>useMembers.saveMembers（Tx化）</td></tr>
+      <tr><td>GET</td><td><code>/api/members/:id/has-costs</code></td><td>useMembers.hasCostRecords</td></tr>
+      <tr><td>GET</td><td><code>/api/projects</code></td><td>useProjects.fetchProjects</td></tr>
+      <tr><td>PUT</td><td><code>/api/projects</code></td><td>useProjects.saveProjects（Tx化）</td></tr>
+      <tr><td>GET</td><td><code>/api/projects/:id/has-performance</code></td><td>useProjects.hasPerformanceRecords（EXISTS 3表を1SQL）</td></tr>
+      <tr><td>GET</td><td><code>/api/projects/:id/years</code></td><td>useProjectYears.fetchYears</td></tr>
+      <tr><td>GET</td><td><code>/api/projects/:id/months?fiscalYear=</code></td><td>useProjectMonths（隣月判定も再利用）</td></tr>
+      <tr><td>GET</td><td><code>/api/fiscal-years</code></td><td>useFiscalYears</td></tr>
+      <tr><td>POST</td><td><code>/api/fiscal-years</code></td><td>useProjectYears.addYear（重複 409）</td></tr>
+      <tr><td>GET</td><td><code>/api/performance?fiscalYear=&amp;month=&amp;projectId=</code></td><td>usePerformance.fetchPerformance</td></tr>
+      <tr><td>PUT</td><td><code>/api/performance</code></td><td>usePerformance.savePerformance（Tx化）</td></tr>
+      <tr><td>GET</td><td><code>/api/dashboard?fiscalYear=</code></td><td>useDashboard.fetchDashboard</td></tr>
+    </tbody>
+  </table>
+
+  <h3>エラー契約</h3>
+  <p>Postgres エラーコードを構造化して返し、既存 composable の日本語メッセージ分岐を維持する。</p>
+
+<pre><code><span class="comment">// サーバ側</span>
+<span class="keyword">throw</span> <span class="func">createError</span>({ statusCode: <span class="num-lit">409</span>, data: { pgCode: <span class="string">'23505'</span> } })
+
+<span class="comment">// クライアント側（既存の error.code === '23505' 分岐を置換）</span>
+<span class="keyword">if</span> (error.data?.pgCode === <span class="string">'23505'</span>) { <span class="comment">/* 既存の日本語メッセージ */</span> }</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>ケース</th><th style="width: 14%;">HTTP</th><th>備考</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>23505</code>（UNIQUE 違反）</td><td>409</td><td>email 重複、年度重複</td></tr>
+      <tr><td><code>23503</code>（FK 違反）</td><td>409</td><td>実績が存在するメンバー / プロジェクトの削除</td></tr>
+      <tr><td>認証なし</td><td>401</td><td>新設</td></tr>
+      <tr><td>未登録ユーザー</td><td>403</td><td>新設</td></tr>
+      <tr><td>zod 検証失敗</td><td>400</td><td>フォーム側 safeParse が第一防衛のため通常到達しない</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== Section 7 ========== -->
+<section id="transaction">
+  <h2>トランザクション設計 <span class="badge">db.transaction()</span></h2>
+
+  <h3>savePerformance（最重要）</h3>
+  <ul>
+    <li>クライアントは「望ましい最終状態」（sales 行・costs 行・managementAmount・remark）を送る</li>
+    <li>サーバが Tx 内で現在行を SELECT し、<strong>差分計算 → DELETE → UPDATE → INSERT → t_status を onConflictDoUpdate</strong></li>
+    <li>サーバ側で差分計算する理由: クライアント snapshot 起点より TOCTOU 窓が狭く、「触った行だけ UPDATE して <code>updated_at</code> を無駄に動かさない」現行方針も維持できる</li>
+    <li>差分計算は <span class="file-path">server/utils/performanceDiff.ts</span> の<strong>純関数に切り出し、実装より先に Vitest テストを書く</strong></li>
+  </ul>
+
+  <h3>saveMembers</h3>
+  <ul>
+    <li>DELETE → UPDATE → INSERT の順序は <strong>Tx 内でも維持する</strong>。email の付け替えは同一 Tx 内でも UNIQUE 制約に即時評価される（deferrable 制約ではない）ため、順序依存自体は消えない</li>
+    <li>変わるのは失敗時の挙動: 途中失敗で「削除だけ通る」ことがなくなり、全ロールバックされる</li>
+  </ul>
+
+  <div class="callout warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>UPDATE は「1行 = 1文」のループを維持し、バルク UPDATE 化しないこと</strong>
+      UNIQUE 制約は文単位で評価されるため、複数行を1つの UPDATE 文にまとめると文の実行途中で一時的な email 重複が発生し得る（1行1文なら発生しない）。<br>
+      既知の制約: 既存メンバー同士の email 入れ替え（A⇄B の交換）は1行1文でも失敗する。現行実装にも存在する制約で移行によって悪化はしない。本質的に解消するなら <code>UNIQUE ... DEFERRABLE INITIALLY DEFERRED</code> への制約再作成が正攻法だが、現時点で要件がないため対応しない。
+    </div>
+  </div>
+
+  <h3>saveProjects</h3>
+  <p>saveMembers と同構造。「m_projects に UNIQUE がないので順序に必然性はない、useMembers と揃えただけ」という既存コメントの知見はサーバ側コードに移植する。</p>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>既存コメントの更新</strong>
+      「部分適用になるので失敗時は必ず再取得」系のコメントは「Tx なので全ロールバックされる。失敗時の再取得は画面表示の更新として維持」に書き換える。
+    </div>
+  </div>
+</section>
+
+<!-- ========== Section 8 ========== -->
+<section id="aggregate">
+  <h2>JOIN / 集計の SQL 化 <span class="badge">GROUP BY</span></h2>
+
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <strong>方針: SQL で GROUP BY、畳み込みは既存純関数を再利用</strong>
+      <span class="file-path">lib/dashboard.ts</span> の <code>buildDashboardData</code> は「行の amount を合計する」純関数であり、SQL 側で GROUP BY 済みの行を入力しても結果は変わらない（和の和は和）。既存テスト資産を活かしつつ転送量も最小化できる。
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th style="width: 22%;">対象</th><th>SQL 側</th><th style="width: 30%;">再利用する既存コード</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>dashboard</td>
+        <td><code>SUM(amount) ... GROUP BY fiscal_year, month, project_id</code> を t_sales / t_costs × 2年度分</td>
+        <td><code>buildDashboardData</code> とテストを無変更で import</td>
+      </tr>
+      <tr>
+        <td>年度別（years）</td>
+        <td><code>GROUP BY fiscal_year</code> + 実績有無</td>
+        <td><code>groupByYear</code> 相当を縮退</td>
+      </tr>
+      <tr>
+        <td>月別（months）</td>
+        <td><code>GROUP BY month</code></td>
+        <td><code>groupByMonth</code> 相当を縮退</td>
+      </tr>
+      <tr>
+        <td>削除ガード</td>
+        <td>count 3本を <code>EXISTS</code> ×3 の 1 クエリへ</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><code>t_costs</code> × <code>m_users</code> の Map 結合（buildCostDrafts）は、members 一覧をクライアントが既に保持しているため初期移行では現行ロジックを維持し、必要になったら <code>LEFT JOIN m_users</code> で JOIN 済みレスポンスを返す選択肢を残す。</p>
+</section>
+
+<!-- ========== Section 9 ========== -->
+<section id="zod">
+  <h2>zod スキーマの再利用 <span class="badge">維持 + サーバ検証</span></h2>
+
+  <p><span class="file-path">lib/schemas/*</span> は zod と <code>rowErrors.ts</code> にしか依存せず Nuxt ランタイム非依存のため、サーバから import できる。フォーム側の safeParse の使い方は一切変えない。</p>
+
+<pre><code><span class="comment">// lib/schemas/api.ts（クライアント・サーバ共有）— 既存行スキーマの合成</span>
+<span class="keyword">export const</span> membersSavePayloadSchema = z.<span class="func">object</span>({
+  drafts: z.<span class="func">array</span>(memberRowSchema.<span class="func">extend</span>({
+    id: z.<span class="func">number</span>().<span class="func">int</span>().<span class="func">positive</span>().<span class="func">nullable</span>(),
+  })),
+  deletedIds: z.<span class="func">array</span>(z.<span class="func">number</span>().<span class="func">int</span>().<span class="func">positive</span>()),
+})</code></pre>
+
+  <p>ルート側は h3 標準の <code>readValidatedBody(event, schema.safeParse)</code> を使う（失敗時は自動で 400）。</p>
+
+  <p>GET のクエリパラメータ（<code>fiscalYear</code> / <code>month</code> / <code>projectId</code> 等）も <code>getValidatedQuery(event, schema.safeParse)</code> で検証する。期間絞り込みの必須化を型と実行時の両方で強制し、絞り込みなしの全件集計がサーバレス関数のタイムアウトを踏む事態を防ぐ。</p>
+</section>
+
+<!-- ========== Section 10 ========== -->
+<section id="deploy">
+  <h2>デプロイ上の重大な注意 <span class="badge">Vercel</span></h2>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-body">
+      <strong>make generate（静的サイト生成）は本移行後に使用禁止</strong>
+      <code>nuxt generate</code> は静的出力のみで Nitro API ルートが一切含まれない。デプロイすると全 API が 404 になる。Makefile の <code>generate</code> ターゲットは削除する（または「build を使え」と表示して exit 1 するガードに変える）。
+    </div>
+  </div>
+
+  <ul>
+    <li><code>nuxt build</code> + Vercel preset（<code>VERCEL</code> 環境で自動選択）へ一本化。<code>ssr: false</code> のまま build しても「SPA シェルの静的配信 + serverless API」の <code>.output</code> になる</li>
+    <li>Vercel 環境変数: 既存の <code>SUPABASE_URL</code> / <code>SUPABASE_KEY</code> に <strong><code>NUXT_DATABASE_URL</code> を追加</strong>。<code>SUPABASE_SERVICE_ROLE_KEY</code> は引き続き設定しない</li>
+    <li><span class="file-path">docs/SETUP.md</span> 8章（Vercel デプロイ、現在 TODO）を本章の内容で執筆する</li>
+  </ul>
+</section>
+
+<!-- ========== Section 11 ========== -->
+<section id="tasks">
+  <h2>実装タスク分割 <span class="badge">T1〜T9</span></h2>
+
+  <p>全面移行だが、一括ビッグバンではなくリソース単位で安全に進める。各タスクは「<code>make test</code> 通過（<code>typeCheck: true</code> により型検査込み）+ 画面手動確認」を完了条件とする。</p>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="step">T1 &middot; インフラ</div>
+      <h4>依存追加・接続・認可の土台</h4>
+      <p>事前確認: Supabase の JWT Signing Keys（非対称鍵）への切替状態を確認し、未切替なら切り替える（レガシー HS256 のままだと全 API に Auth サーバ照会のレイテンシが乗る）。drizzle-orm / postgres / drizzle-kit 追加、<code>server/utils/db.ts</code>、<code>drizzle.config.ts</code>、初回 pull + numeric 手修正、<code>server/utils/auth.ts</code>、<code>GET /api/me</code>。</p>
+      <p class="verify">検証: /api/me が 200 / 401 / 403 を返す。make test 無影響</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T2 &middot; パイロット</div>
+      <h4>fiscal-years で最小 CRUD を確立</h4>
+      <p>GET / POST + <code>useFiscalYears</code> / <code>useProjectYears.addYear</code> 差し替え。23505→409 のエラー契約を確立。</p>
+      <p class="verify">検証: 年度追加の手動確認。重複追加で既存の日本語メッセージが出る</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T3 &middot; members</div>
+      <h4>トランザクション初適用 + has-costs</h4>
+      <p>PUT /api/members を <code>db.transaction()</code> で実装。</p>
+      <p class="verify">検証: email 付け替えシナリオ、FK 違反シナリオ</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T4 &middot; projects</div>
+      <h4>Tx + EXISTS 削除ガード</h4>
+      <p>members と同構造。削除ガードの count 3本を EXISTS 1クエリへ。</p>
+      <p class="verify">検証: T3 と同様</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T5 &middot; performance</div>
+      <h4>最重要トランザクション（テスト先行）</h4>
+      <p>差分計算の純関数 <code>performanceDiff.ts</code> のユニットテストを先に書き、PUT /api/performance を実装。</p>
+      <p class="verify">検証: make test（diff 関数）、保存→再取得の一致、途中失敗でロールバック確認</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T6 &middot; 集計 3 本</div>
+      <h4>dashboard / years / months の SQL 化</h4>
+      <p>SQL 側 GROUP BY + <code>buildDashboardData</code> 再利用。</p>
+      <p class="verify">検証: 移行前後で同一データに対する表示値が一致すること</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T7 &middot; 認可まわり</div>
+      <h4>useAppUser / middleware を /api/me へ</h4>
+      <p>fail-closed（エラー時 UNREGISTERED）の挙動を維持したまま resolve の照合先を差し替え。</p>
+      <p class="verify">検証: ログイン / 未登録 / ログアウトの遷移確認</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T8 &middot; 依存除去</div>
+      <h4>PostgREST 直叩きゼロを確認</h4>
+      <p><code>useSupabaseClient</code> の DB 用途を grep でゼロ確認（Auth 用途のみ残す）。</p>
+      <p class="verify">検証: grep -r "\.from(" composables/ pages/ が 0 件。make db-check-rls で RLS 残置確認</p>
+    </div>
+    <div class="timeline-item">
+      <div class="step">T9 &middot; クリーンアップ</div>
+      <h4>退役判断とドキュメント整備</h4>
+      <p><code>database.types.ts</code> 退役判断、Makefile 整理（generate 削除・db-drizzle-pull 追加）、SETUP.md 8章執筆、.env.example 更新。</p>
+      <p class="verify">検証: make build 成功、ドキュメントレビュー</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Section 12 ========== -->
+<section id="risks">
+  <h2>リスクと対処 <span class="badge">Risk</span></h2>
+
+  <table>
+    <thead>
+      <tr><th style="width: 34%;">リスク</th><th>対処</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>numeric → string 問題</td>
+        <td>pull 生成物は手メンテ運用。<code>mode: 'number'</code> の消失は <code>db-drizzle-pull</code> の差分レビューで検知</td>
+      </tr>
+      <tr>
+        <td>型の二重管理（database.types.ts vs schema.ts）</td>
+        <td>「唯一の正は supabase/migrations、両者はその写像」と位置づけ、T9 で database.types.ts を退役判断</td>
+      </tr>
+      <tr>
+        <td>スキーマ更新漏れ（pull 手動マージの形骸化）</td>
+        <td><code>drizzle-kit check</code> は generate 系ワークフロー専用で pull 運用には使えず、<code>mode: 'number'</code> の手修正がある以上 pull 出力との機械 diff は常に差分が出るため CI の単純 diff も組めない。対処はプロセス側: スキーマ変更フロー（4章）を手順として固定し、<code>typeCheck: true</code> のビルド型検査を「schema.ts の更新漏れが API 型の不整合として検出される」防衛線と位置づける</td>
+      </tr>
+      <tr>
+        <td><code>useSsrCookies</code> 依存</td>
+        <td>false にすると全 API が 401。nuxt.config.ts にコメントで固定を明記</td>
+      </tr>
+      <tr>
+        <td><code>getClaims</code> のネットワークコスト</td>
+        <td>レガシー HS256 だと毎リクエスト Auth サーバ照会になる。T1 の事前タスクとして JWT Signing Keys（非対称鍵）へ切り替える（JWKS ローカル検証になり往復が消える）</td>
+      </tr>
+      <tr>
+        <td>Supavisor 接続枯渇</td>
+        <td><code>max: 1</code> + transaction mode。<code>prepare: false</code> を忘れると初回から失敗する</td>
+      </tr>
+      <tr>
+        <td>ローカル開発の疎通</td>
+        <td>dev コンテナからリモート Supavisor への接続が前提。docker-compose.yml に環境変数の受け渡し追記が必要</td>
+      </tr>
+      <tr>
+        <td>テスト戦略</td>
+        <td>差分計算・集計を純関数化して Vitest 継続。ルートハンドラは薄く保つ。将来 @nuxt/test-utils の Nitro テスト導入余地あり</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== Section 13 ========== -->
+<section id="appendix">
+  <h2>付録 <span class="badge">Reference</span></h2>
+
+  <h3>環境変数（新旧対照）</h3>
+  <table>
+    <thead>
+      <tr><th style="width: 34%;">変数</th><th>現状</th><th>移行後</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>SUPABASE_URL</code></td><td>使用中</td><td>継続（Auth 用）</td></tr>
+      <tr><td><code>SUPABASE_KEY</code></td><td>使用中（anon）</td><td>継続（Auth 用）</td></tr>
+      <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>ローカル管理作業のみ</td><td>変更なし（Vercel には置かない）</td></tr>
+      <tr><td><code>DB_PASSWORD</code></td><td>Supabase CLI 用</td><td>継続</td></tr>
+      <tr><td><code>NUXT_DATABASE_URL</code></td><td>—</td><td class="yes">新設（ランタイム、pooler :6543。Vercel にも設定）</td></tr>
+      <tr><td><code>DIRECT_DATABASE_URL</code></td><td>—</td><td class="yes">新設（drizzle-kit 用、:5432。ローカルのみ）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>新設ファイル一覧</h3>
+  <table>
+    <thead>
+      <tr><th style="width: 40%;">パス</th><th>役割</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="file-path">drizzle.config.ts</span></td><td>drizzle-kit 設定（pull 専用）</td></tr>
+      <tr><td><span class="file-path">server/db/schema.ts</span></td><td>Drizzle スキーマ（初回 pull → 以後手メンテ）</td></tr>
+      <tr><td><span class="file-path">server/utils/db.ts</span></td><td>postgres-js + Drizzle のシングルトン</td></tr>
+      <tr><td><span class="file-path">server/utils/auth.ts</span></td><td>requireAppUser（JWT + m_users 照合）</td></tr>
+      <tr><td><span class="file-path">server/utils/performanceDiff.ts</span></td><td>savePerformance の差分計算（純関数・テスト対象）</td></tr>
+      <tr><td><span class="file-path">server/api/**</span></td><td>6章のエンドポイント群</td></tr>
+      <tr><td><span class="file-path">lib/schemas/api.ts</span></td><td>リクエストボディ用 zod スキーマ（既存行スキーマの合成）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>コマンドチートシート（移行後）</h3>
+<pre><code>make db-new NAME=add_foo   <span class="comment"># マイグレーション作成（オーナーは Supabase CLI のまま）</span>
+make db-push               <span class="comment"># リモート適用</span>
+make db-drizzle-pull       <span class="comment"># Drizzle スキーマの drift 確認（生成物は手動マージ）</span>
+make build                 <span class="comment"># 本番ビルド（generate は廃止）</span>
+make db-check-rls          <span class="comment"># RLS 残置の検証（継続）</span></code></pre>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer>
+  <p>profit-board &middot; Drizzle 導入実装プラン &middot; 2026年8月</p>
+  <p style="margin-top: 8px;">正のドキュメント: docs/DRIZZLE-PLAN.md &middot; 事前調査: docs/drizzle-investigation.html</p>
+</footer>
+
+</div>
+</body>
+</html>

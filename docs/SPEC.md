@@ -67,9 +67,10 @@ MVP（Minimum Viable Product）開発
   * 売上・費用の棒グラフ＋利益率の折れ線グラフ（複合グラフ）。
 * **プロジェクト別 月次営業成績（マトリクス表）**:
   * プロジェクトごとに「売上・費用・粗利・粗利率」の4行を表示。
-  * 4月〜3月（12ヶ月分）の月次実績を展開（単位：円固定）。
+  * 7月〜翌6月（12ヶ月分）の月次実績を展開（単位：円固定）。
   * 未入力の月は「`-`」を表示。
   * PJ総結合計（年間合計・平均粗利率）を自動計算して表示。
+  * プロジェクト名欄に年度比較のステータスバッジ（成長 / 順調 / 注意 / 警告）を表示。選択年度の年間営業利益を前年度と比較して判定する（判定ロジックは6.2節と同じ表を年度単位に適用）。当年度実績のないプロジェクトはバッジを表示しない。前年度実績がない場合は黒字なら「順調」、赤字なら「警告」とする。
 
 ### 4.2 プロジェクト営業成績一覧画面 (`/projects`)
 
@@ -192,7 +193,7 @@ CREATE TABLE t_costs (
   project_id INT NOT NULL REFERENCES m_projects(id),
   user_id INT REFERENCES m_users(id), -- NULLの場合は管理費等
   cost_type VARCHAR(50) NOT NULL DEFAULT 'LABOR', -- 'LABOR' or 'MANAGEMENT'
-  work_hours NUMERIC(6, 1) DEFAULT 0,
+  work_hours NUMERIC(6, 2) DEFAULT 0,
   work_days NUMERIC(6, 2) DEFAULT 0,
   unit_price NUMERIC(12, 0) DEFAULT 0,
   amount NUMERIC(12, 0) NOT NULL DEFAULT 0,
@@ -220,6 +221,14 @@ CREATE TABLE t_status (
 ---
 
 ## 6. ロジック・計算仕様
+
+### 6.0 会計年度の定義
+
+* **年度は7月始まり**（6月決算）。「2026年度」は **2026年7月〜2027年6月** を指す（開始年で呼ぶ）。
+* `t_sales` / `t_costs` / `t_status` の `fiscal_year` はこの年度、`month` は暦月（1〜12）を保持する。
+  したがって年度2026の `month = 1` は暦2027年1月を意味する。
+* 開始月は `lib/fiscalYear.ts` の `FISCAL_START_MONTH` 1ヶ所で定義され、
+  月の並び・年度⇔暦年変換・前年同期比はすべてこれを参照する。
 
 ### 6.1 自動計算ロジック
 
