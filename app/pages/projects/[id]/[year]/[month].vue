@@ -222,7 +222,7 @@ watch(() => route.params.month, load)
       <!-- 明細。閲覧専用なので入力欄は置かない。 -->
       <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table class="min-w-full">
-          <thead class="bg-slate-50">
+          <thead class="border-y divide-state-200 bg-slate-50">
             <tr>
               <th scope="col" class="w-28 px-6 py-3 text-left text-xs font-semibold text-slate-500">大項目</th>
               <th scope="col" class="px-3 py-3 text-left text-xs font-semibold text-slate-500">小項目</th>
@@ -254,7 +254,7 @@ watch(() => route.params.month, load)
           </tbody>
 
           <tbody class="divide-y divide-slate-200">
-            <tr class="bg-slate-50/70">
+            <tr class="border-t bg-slate-50/70">
               <th scope="rowgroup" class="px-6 py-3 text-left text-sm font-bold text-slate-900">費用</th>
               <td colspan="5"></td>
               <td class="px-6 py-3 text-right text-sm font-bold tabular-nums text-blue-700">
@@ -264,11 +264,11 @@ watch(() => route.params.month, load)
             <!-- 稼働のないメンバーも行として残す。誰が動いていないかが分かる。 -->
             <tr v-for="draft in form.costs" :key="draft.key" :class="draft.work_hours === 0 ? 'text-slate-400' : ''">
               <td></td>
-              <td class="px-3 py-3 text-sm" :class="draft.work_hours === 0 ? '' : 'text-slate-900'">
+              <td class="px-3 py-3 text-sm" :class="draft.work_hours === 0 ? '' : 'text-slate-900 font-bold'">
                 {{ draft.label }}
               </td>
               <!-- toFixed(1) にすると 0.25h が 0.3 に見える（DB は小数第2位まで持つ）。 -->
-              <td class="px-3 py-3 text-right text-sm tabular-nums">{{ draft.work_hours }}</td>
+              <td class="px-3 py-3 text-right text-sm tabular-nums">{{ draft.work_hours }}h</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ calcWorkDays(draft.work_hours) }}</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ formatYen(draft.unit_price) }}</td>
               <td class="px-3 py-3 text-right text-sm tabular-nums">{{ formatYen(laborCost(draft)) }}</td>
@@ -286,7 +286,7 @@ watch(() => route.params.month, load)
           </tbody>
 
           <tbody class="divide-y divide-slate-200">
-            <tr class="bg-slate-50/70">
+            <tr class="border-t bg-slate-50/70">
               <th scope="rowgroup" class="px-6 py-3 text-left text-sm font-bold text-slate-900">粗利</th>
               <td colspan="5"></td>
               <td class="px-6 py-3 text-right text-sm font-bold tabular-nums"
@@ -294,9 +294,11 @@ watch(() => route.params.month, load)
                 {{ formatYen(summary.grossProfit) }}
               </td>
             </tr>
-            <tr v-if="form.remark">
+            <tr>
               <th scope="row" class="px-6 py-3 text-left text-sm font-semibold text-slate-900">備考</th>
-              <td colspan="6" class="px-3 py-3 text-sm text-slate-600">{{ form.remark }}</td>
+              <td colspan="6" class="px-3 py-3 text-sm" :class="form.remark ? 'text-slate-600' : 'text-slate-400'">
+                {{ form.remark || '—' }}
+              </td>
             </tr>
           </tbody>
         </table>
