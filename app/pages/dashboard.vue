@@ -3,6 +3,8 @@ import { FetchStatus } from '~/lib/fetchStatus'
 import { formatPercent, formatPointDiff, formatSignedPercent, formatYen } from '~/lib/format'
 import { getCurrentFiscalYear } from '~/lib/fiscalYear'
 
+const route = useRoute()
+const router = useRouter()
 const { fiscalYears, status: yearsStatus } = useFiscalYears()
 const { data, status, errorMessage, fetchDashboard } = useDashboard()
 
@@ -16,6 +18,23 @@ const yearOptions = computed(() =>
   fiscalYears.value.map(({ year }) => ({ value: String(year), label: `${year}年度` })),
 )
 
+const isCorrectFiscalYear = (year: number) => {
+  if (fiscalYears.value.length === 0) return false
+  return fiscalYears.value.some((fiscalYear) => fiscalYear.year === year)
+}
+
+const queryFiscalYear = computed(() => {
+  if (fiscalYears.value.length === 0) return null
+
+  const queryFiscalYear = route.query.fiscal_year
+  if (queryFiscalYear && typeof queryFiscalYear === "string" && isCorrectFiscalYear(Number(queryFiscalYear))) {
+    return Number(queryFiscalYear)
+  } else {
+    null
+  }
+
+})
+
 /** 年度マスタは非同期に埋まるので、届いてから初期値を決める。 */
 watch(
   fiscalYears,
@@ -24,18 +43,25 @@ watch(
     if (selectedYear.value !== '') return
 
     const currentYear = getCurrentFiscalYear()
-    selectedYear.value = String(
-      fiscalYears.value.some((fiscalYear) => fiscalYear.year === currentYear)
-        ? currentYear
-        : fiscalYears.value[0].year,
-    )
+    selectedYear.value = String(isCorrectFiscalYear(currentYear) ? currentYear : fiscalYears.value[0].year)
   },
   { immediate: true },
 )
 
 watch(selectedYear, (year) => {
   if (year === '') return
-  void fetchDashboard(Number(year))
+
+  // すでに同一のfiscal_yearが設定されていれば何もしない
+  if (queryFiscalYear.value && queryFiscalYear.value === Number(year)) return
+
+  router.push(`/dashboard?fiscal_year=${selectedYear.value}`)
+})
+
+watch(route, () => {
+  if (queryFiscalYear.value) {
+    selectedYear.value = String(queryFiscalYear.value)
+    void fetchDashboard(queryFiscalYear.value)
+  }
 })
 
 /** 年度マスタが1件もないと年度を選べず、集計そのものが始められない。 */
@@ -119,26 +145,18 @@ const kpiCards = computed<KpiCard[]>(() => {
     },
   ]
 })
+
 </script>
 
 <template>
   <div>
-    <PageHeader title="営業成績ダッシュボード" subtitle="年度全体の売上・費用・営業利益を俯瞰します">
+    <PageHeader :title="`${selectedYear ? `${selectedYear}年度 ` : ''}営業成績ダッシュボード`" subtitle="年度全体の売上・費用・営業利益を俯瞰します">
       <template #actions>
-        <USelect
-          v-model="selectedYear"
-          :options="yearOptions"
-          placeholder="年度を選択"
-          class="w-36"
-          aria-label="年度"
-        />
+        <USelect v-model="selectedYear" :options="yearOptions" placeholder="年度を選択" class="w-36" aria-label="年度" />
       </template>
     </PageHeader>
 
-    <div
-      v-if="hasNoYears"
-      class="rounded-xl border border-slate-200 bg-white px-6 py-16 text-center"
-    >
+    <div v-if="hasNoYears" class="rounded-xl border border-slate-200 bg-white px-6 py-16 text-center">
       <UIcon name="i-lucide-calendar" class="h-8 w-8 text-slate-300" />
       <p class="mt-3 text-sm text-slate-500">年度が登録されていません。</p>
       <p class="mt-1 text-xs text-slate-400">
@@ -147,49 +165,30 @@ const kpiCards = computed<KpiCard[]>(() => {
     </div>
 
     <!-- IDLE も読み込み中に含める。年度が決まる前の1フレームで空表示になるのを防ぐ。 -->
-    <div
-      v-else-if="status === FetchStatus.IDLE || status === FetchStatus.LOADING"
-      class="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-16 text-sm text-slate-500"
-    >
+    <div v-else-if="status === FetchStatus.IDLE || status === FetchStatus.LOADING"
+      class="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-16 text-sm text-slate-500">
       <UIcon name="i-lucide-loader-circle" class="h-5 w-5 animate-spin" />
       <span>読み込み中...</span>
     </div>
 
-    <div
-      v-else-if="status === FetchStatus.ERROR"
-      class="rounded-xl border border-slate-200 bg-white px-6 py-10"
-    >
-      <UAlert
-        color="red"
-        variant="subtle"
-        icon="i-lucide-circle-alert"
-        :description="errorMessage ?? ''"
-      />
+    <div v-else-if="status === FetchStatus.ERROR" class="rounded-xl border border-slate-200 bg-white px-6 py-10">
+      <UAlert color="red" variant="subtle" icon="i-lucide-circle-alert" :description="errorMessage ?? ''" />
     </div>
 
     <div v-else-if="data" class="space-y-4">
       <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div
-          v-for="card in kpiCards"
-          :key="card.label"
-          class="rounded-xl border border-slate-200 bg-white px-5 py-4"
-        >
+        <div v-for="card in kpiCards" :key="card.label" class="rounded-xl border border-slate-200 bg-white px-5 py-4">
           <dt class="text-xs text-slate-500">{{ card.label }}</dt>
-          <dd
-            class="mt-1 text-2xl font-bold tabular-nums"
-            :class="card.emphasize ? (card.negative ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'"
-          >
+          <dd class="mt-1 text-2xl font-bold tabular-nums"
+            :class="card.emphasize ? (card.negative ? 'text-red-600' : 'text-emerald-600') : 'text-slate-900'">
             {{ card.value }}
           </dd>
           <dd class="mt-2 flex items-center gap-2">
-            <span
-              class="rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums"
-              :class="{
-                'bg-emerald-50 text-emerald-700': card.tone === 'up',
-                'bg-red-50 text-red-600': card.tone === 'down',
-                'bg-slate-100 text-slate-500': card.tone === null,
-              }"
-            >
+            <span class="rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums" :class="{
+              'bg-emerald-50 text-emerald-700': card.tone === 'up',
+              'bg-red-50 text-red-600': card.tone === 'down',
+              'bg-slate-100 text-slate-500': card.tone === null,
+            }">
               {{ card.diff }}
             </span>
             <span class="text-xs text-slate-400">前年同期比</span>
