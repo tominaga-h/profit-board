@@ -49,9 +49,16 @@ const formatTotal = (row: MatrixRow, metric: MetricKey): string => {
   return formatYen(row.total.grossProfit)
 }
 
-/** 粗利の行だけ赤字を色で示す。売上・費用は符号を持たないので対象外。 */
-const isNegative = (row: MatrixRow, metric: MetricKey): boolean =>
+/** 粗利の行（年間粗利がマイナス）だけ赤字を色で示す。売上・費用は符号を持たないので対象外。 */
+const isRowNegative = (row: MatrixRow, metric: MetricKey): boolean =>
   (metric === 'profit' || metric === 'rate') && row.total.grossProfit < 0
+
+/** 月次セル用。月データがない月は判定しようがないため false で固定する。 */
+const isMonthNegative = (row: MatrixRow, month: number, metric: MetricKey): boolean => {
+  if (metric !== 'profit' && metric !== 'rate') return false
+  const summary = row.byMonth.get(month)
+  return summary ? summary.grossProfit < 0 : false
+}
 </script>
 
 <template>
@@ -139,7 +146,11 @@ const isNegative = (row: MatrixRow, metric: MetricKey): boolean =>
 
               <td
                 class="whitespace-nowrap bg-amber-50 px-4 py-2 text-right text-xs font-semibold tabular-nums"
-                :class="isNegative(row, metric.key) ? 'text-red-600' : 'text-slate-900'"
+                :class="
+                  metric.key === 'profit' || metric.key === 'rate'
+                    ? (isRowNegative(row, metric.key) ? 'text-red-600' : 'text-blue-700')
+                    : 'text-slate-900'
+                "
               >
                 {{ formatTotal(row, metric.key) }}
               </td>
@@ -154,7 +165,9 @@ const isNegative = (row: MatrixRow, metric: MetricKey): boolean =>
                   class="block px-4 py-2 transition-colors hover:bg-blue-50"
                   :class="
                     metric.key === 'profit' || metric.key === 'rate'
-                      ? 'font-semibold text-blue-700'
+                      ? (isMonthNegative(row, column.month, metric.key)
+                          ? 'font-semibold text-red-600'
+                          : 'font-semibold text-blue-700')
                       : 'text-slate-600'
                   "
                 >
